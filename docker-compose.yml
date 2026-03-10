@@ -1,0 +1,42 @@
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: smart-movie-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: smart_movie_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: smart-movie-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./frontend
+    container_name: smart-movie-frontend
+    restart: unless-stopped
+    env_file: ./frontend/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7
+    container_name: smart-movie-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  mongo-data:
