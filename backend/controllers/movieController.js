@@ -2,7 +2,7 @@
 import { searchMovies, getMovieDetails } from "../services/tmdbService.js";
 import { getRecommendations } from "../services/aiRecommender.js";
 import { redisClient } from "../config/db.js";
-import { searchMovieByTitle } from "../services/tmdbService.js";
+import { searchMovieByTitle, getMovieTrailer } from "../services/tmdbService.js";
 
 // 🔎 Search Movies
 export const searchMovieHandler = async (req, res) => {
@@ -104,14 +104,23 @@ export const getTrendingMoviesHandler = async (req, res) => {
 
     const data = await response.json();
 
-    const movies = data.results.slice(0, 10).map((movie) => ({
-      title: movie.title,
-      poster: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-      backdrop_path: movie.backdrop_path,
-      overview: movie.overview,
-      rating: movie.vote_average,
-      releaseDate: movie.release_date
-    }));
+    const movies = await Promise.all(
+      data.results.slice(0, 10).map(async (movie) => {
+
+        const trailerKey = await getMovieTrailer(movie.id);
+
+        return {
+          tmdbId: movie.id,
+          title: movie.title,
+          poster: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+          backdrop_path: movie.backdrop_path,
+          overview: movie.overview,
+          rating: movie.vote_average,
+          releaseDate: movie.release_date,
+          trailer: trailerKey
+        };
+      })
+    );
 
     res.json({ movies });
 
