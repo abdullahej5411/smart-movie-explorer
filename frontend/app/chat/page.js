@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function ChatPage() {
   const [message, setMessage] = useState("");
@@ -11,8 +10,58 @@ export default function ChatPage() {
   const [insight, setInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false); // 👈 ADD THIS LINE
   const [trending, setTrending] = useState([]);
+  const [animatedInsight, setAnimatedInsight] = useState("");
+  const [playingTrailerId, setPlayingTrailerId] = useState(null);
+  const hoverTimerRef = useRef(null);
+  const [popoutDirection, setPopoutDirection] = useState("center"); // 👈 ADD THIS
 
+  // 👈 Start Netflix-style timer on hover
+  // 👈 UPGRADED: Smart Netflix-style edge detection
+  const handleCardMouseEnter = (e, tmdbId) => {
+    // Find exactly where this specific card is on the screen
+    const rect = e.currentTarget.getBoundingClientRect();
+    const screenWidth = window.innerWidth;
+
+    // If it's too close to the left edge, force it to pop right
+    if (rect.left < 100) {
+      setPopoutDirection("left");
+    }
+    // If it's too close to the right edge, force it to pop left
+    else if (screenWidth - rect.right < 100) {
+      setPopoutDirection("right");
+    }
+    // Otherwise, perfectly center it!
+    else {
+      setPopoutDirection("center");
+    }
+
+    hoverTimerRef.current = setTimeout(() => {
+      setPlayingTrailerId(tmdbId);
+    }, 800);
+  };
+
+  // 👈 Cancel timer if mouse leaves early, or stop video if playing
+  const handleCardMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+    setPlayingTrailerId(null);
+  };
   const rowRef = useRef(null);
+
+
+  // 👈 Translates **bold** markdown into actual bold text!
+  const renderFormattedText = (text) => {
+    if (!text) return "";
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={index} style={{ color: "#fff" }}>{part.replace(/\*\*/g, "")}</strong>;
+      }
+      return part;
+    });
+  };
+
 
   const scrollRow = (direction) => {
     if (rowRef.current) {
@@ -87,9 +136,9 @@ export default function ChatPage() {
   const fetchInsight = async (title) => {
 
     setInsight("");
+    setAnimatedInsight("");
     setInsightLoading(true);
 
-    // 👇 allow UI to render loader
     await new Promise(resolve => setTimeout(resolve, 60));
 
     try {
@@ -104,7 +153,13 @@ export default function ChatPage() {
 
       const data = await res.json();
 
-      setInsight(data.insight);
+      const insightText =
+        data.insight ||
+        data.message ||
+        "No AI insight available for this movie.";
+
+      await typeInsight(insightText);
+      setInsight(insightText);
 
     } catch (err) {
 
@@ -115,6 +170,22 @@ export default function ChatPage() {
 
       setInsightLoading(false);
 
+    }
+  };
+
+
+
+  const typeInsight = async (text = "") => {
+    setAnimatedInsight("");
+
+    const words = text.split(" ");
+    let current = "";
+
+    for (let i = 0; i < words.length; i++) {
+      current += words[i] + " ";
+      setAnimatedInsight(current);
+
+      await new Promise((r) => setTimeout(r, 30));
     }
   };
 
@@ -154,20 +225,36 @@ export default function ChatPage() {
 
       const data = await res.json();
 
-      const aiMessage = {
-        role: "ai",
-        text:
-          data.reply ||
-          data.query?.reply ||
-          data.message ||
-          "Here are some recommendations for you!",
-        movies: data.results || []
-      };
+      const aiReply =
+        data.reply ||
+        data.query?.reply ||
+        data.message ||
+        "Here are some recommendations for you!";
 
       setMessages((prev) => {
         const withoutTyping = prev.filter(m => m.role !== "typing");
-        return [...withoutTyping, aiMessage];
+
+        return [
+          ...withoutTyping,
+          { role: "ai", text: "", movies: data.results || [] }
+        ];
       });
+
+      const words = aiReply.split(" ");
+
+      let current = "";
+
+      for (let i = 0; i < words.length; i++) {
+        current += words[i] + " ";
+
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].text = current;
+          return updated;
+        });
+
+        await new Promise((r) => setTimeout(r, 30));
+      }
 
     } catch (error) {
 
@@ -207,9 +294,12 @@ export default function ChatPage() {
         gap: 20px;
         overflow-x: auto;
         scroll-behavior: smooth;
-
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE */
+        
+        /* 👇 THIS STOPS THE SCROLLBAR CLIPPING FIX 👇 */
+        padding: 40px 150px;
+        margin: -40px -150px;
       }
 
       .movieRow::-webkit-scrollbar {
@@ -305,6 +395,61 @@ export default function ChatPage() {
           transform:translateY(0);
         }
       }
+
+      /* 👇 THE BASE HOVER ANIMATION 👇 */
+      .movie-card {
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      }
+      
+      .movie-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.9);
+      }
+
+      /* 👇 THE SMART WIDESCREEN POPOUT 👇 */
+      .popout-card {
+        position: absolute;
+        top: 50%;
+        width: 480px;      /* 👈 Increased from 340px */
+        height: 320px;
+        background: #141414;
+        border-radius: 12px;
+        overflow: hidden;
+        z-index: 100;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.9);
+        pointer-events: none; 
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* The 3 Smart Positions */
+      .popout-center {
+        left: 50%;
+        animation: popoutCenterAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+      .popout-left {
+        left: 0;
+        animation: popoutLeftAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+      .popout-right {
+        right: 0;
+        animation: popoutRightAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+
+      @keyframes popoutCenterAnim {
+        0% { transform: translate(-50%, calc(-50% - 20px)) scale(0.8); opacity: 0; }
+        100% { transform: translate(-50%, calc(-50% - 20px)) scale(1); opacity: 1; }
+      }
+      @keyframes popoutLeftAnim {
+        0% { transform: translate(0, calc(-50% - 20px)) scale(0.8); opacity: 0; }
+        100% { transform: translate(0, calc(-50% - 20px)) scale(1); opacity: 1; }
+      }
+      @keyframes popoutRightAnim {
+        0% { transform: translate(0, calc(-50% - 20px)) scale(0.8); opacity: 0; }
+        100% { transform: translate(0, calc(-50% - 20px)) scale(1); opacity: 1; }
+      }
+
       `}</style>
 
 
@@ -388,7 +533,7 @@ export default function ChatPage() {
                 position: "absolute",
                 left: 0,
                 top: 0,
-                height: "300px", // Locks exactly to poster height
+                height: "100%", // Locks exactly to poster height
                 width: "70px",
                 zIndex: 10,
                 background: "linear-gradient(to right, #0f0f0f 10%, transparent 100%)", // Perfect fade
@@ -432,25 +577,64 @@ export default function ChatPage() {
               {trending.map((movie, i) => (
                 <div
                   key={i}
+                  onMouseEnter={(e) => handleCardMouseEnter(e, movie.tmdbId)} /* 👈 Passed the event 'e' here */
+                  onMouseLeave={handleCardMouseLeave}
                   onClick={() => {
                     setSelectedMovie(movie);
+                    setAnimatedInsight("");
                     fetchInsight(movie.title);
                   }}
                   style={{
+                    position: "relative",
+                    zIndex: playingTrailerId === movie.tmdbId ? 50 : 1,
                     minWidth: "200px",
+                    width: "200px",
                     cursor: "pointer"
                   }}
                 >
-                  <img
-                    src={movie.poster}
+                  {/* 1. THE BASE POSTER */}
+                  <div
+                    className="movie-card"
                     style={{
                       width: "200px",
                       height: "300px",
-                      objectFit: "cover",
-                      borderRadius: "10px"
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      background: "#1a1a1a",
+                      opacity: playingTrailerId === movie.tmdbId && movie.trailer ? 0 : 1,
+                      transition: "opacity 0.3s ease"
                     }}
-                  />
-                  <p style={{ marginTop: "10px" }}>{movie.title}</p>
+                  >
+                    <img src={movie.poster} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+
+                  <p style={{
+                    marginTop: "10px",
+                    padding: "0 5px",
+                    opacity: playingTrailerId === movie.tmdbId && movie.trailer ? 0 : 1,
+                    transition: "opacity 0.3s ease"
+                  }}>
+                    {movie.title}
+                  </p>
+
+                  {/* 2. THE WIDESCREEN POPOUT TRAILER */}
+                  {playingTrailerId === movie.tmdbId && movie.trailer && (
+                    <div className={`popout-card popout-${popoutDirection}`}> {/* 👈 Added the dynamic edge direction here */}
+                      <iframe
+                        src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${movie.trailer}`}
+                        style={{ width: "100%", height: "270px", border: "none", pointerEvents: "none" }}
+                        allow="autoplay"
+                      />
+                      <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", flexGrow: 1 }}>
+                        <h3 style={{ margin: 0, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "75%" }}>
+                          {movie.title}
+                        </h3>
+                        <span style={{ background: "#e50914", padding: "3px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                          ⭐ {Number(movie.rating).toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -462,7 +646,7 @@ export default function ChatPage() {
                 position: "absolute",
                 right: 0,
                 top: 0,
-                height: "300px", // Locks exactly to poster height
+                height: "100%", // Locks exactly to poster height
                 width: "70px",
                 zIndex: 10,
                 background: "linear-gradient(to left, #0f0f0f 10%, transparent 100%)", // Perfect fade
@@ -564,8 +748,8 @@ export default function ChatPage() {
 
                 {/* 👇 ADD THIS NEW BLOCK TO SHOW THE AI's TEXT 👇 */}
                 {msg.text && (
-                  <p style={{ marginBottom: "20px", fontSize: "16px", lineHeight: "1.5" }}>
-                    {msg.text}
+                  <p style={{ marginBottom: "20px", fontSize: "16px", lineHeight: "1.5", color: "#ccc" }}>
+                    {renderFormattedText(msg.text)}
                   </p>
                 )}
 
@@ -582,51 +766,56 @@ export default function ChatPage() {
                   {msg.movies.map((movie, i) => (
                     <div
                       key={`${movie.tmdbId}-${i}`}
+                      onMouseEnter={(e) => handleCardMouseEnter(e, movie.tmdbId)} /* 👈 Passed the event 'e' here */
+                      onMouseLeave={handleCardMouseLeave}
                       onClick={() => {
                         setSelectedMovie(movie);
-                        fetchInsight(movie.title); // 👈 Passes the exact string, ignoring the state delay!
+                        setAnimatedInsight("");
+                        fetchInsight(movie.title);
                       }}
                       style={{
-                        borderRadius: "12px",
-                        overflow: "hidden",
-                        background: "#1a1a1a",
-                        cursor: "pointer",
-                        boxShadow: "0 10px 30px rgba(0,0,0,.6)",
-                        transition: "all .35s ease"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-8px) scale(1.05)";
-                        e.currentTarget.style.boxShadow = "0 20px 40px rgba(0,0,0,.9)";
-                      }}
-
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0) scale(1)";
-                        e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,.6)";
+                        position: "relative",
+                        zIndex: playingTrailerId === movie.tmdbId ? 50 : 1,
+                        cursor: "pointer"
                       }}
                     >
-                      <img
-                        src={movie.poster}
-                        alt={movie.title}
+                      {/* 1. THE BASE POSTER */}
+                      <div
+                        className="movie-card"
                         style={{
-                          width: "100%",
-                          height: "300px",
-                          objectFit: "cover"
+                          borderRadius: "12px",
+                          overflow: "hidden",
+                          background: "#1a1a1a",
+                          opacity: playingTrailerId === movie.tmdbId && movie.trailer ? 0 : 1,
+                          transition: "opacity 0.3s ease"
                         }}
-                      />
-
-                      <div style={{ padding: "10px" }}>
-                        <h3 style={{ fontSize: "16px", margin: "0 0 10px 0" }}>
-                          {movie.title}
-                        </h3>
-
-                        <p style={{ margin: "0 0 5px 0" }}>
-                          ⭐ {Number(movie.rating).toFixed(1)}
-                        </p>
-
-                        <p style={{ fontSize: "12px", color: "#555", margin: 0 }}>
-                          {movie.releaseDate}
-                        </p>
+                      >
+                        <img src={movie.poster} style={{ width: "100%", height: "300px", objectFit: "cover" }} />
+                        <div style={{ padding: "10px" }}>
+                          <h3 style={{ fontSize: "16px", margin: "0 0 10px 0" }}>{movie.title}</h3>
+                          <p style={{ margin: "0 0 5px 0" }}>⭐ {Number(movie.rating).toFixed(1)}</p>
+                          <p style={{ fontSize: "12px", color: "#555", margin: 0 }}>{movie.releaseDate}</p>
+                        </div>
                       </div>
+
+                      {/* 2. THE WIDESCREEN POPOUT TRAILER */}
+                      {playingTrailerId === movie.tmdbId && movie.trailer && (
+                        <div className={`popout-card popout-${popoutDirection}`}> {/* 👈 Added the dynamic edge direction here */}
+                          <iframe
+                            src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${movie.trailer}`}
+                            style={{ width: "100%", height: "270px", border: "none", pointerEvents: "none" }}
+                            allow="autoplay"
+                          />
+                          <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", flexGrow: 1 }}>
+                            <h3 style={{ margin: 0, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "75%" }}>
+                              {movie.title}
+                            </h3>
+                            <span style={{ background: "#e50914", padding: "3px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                              ⭐ {Number(movie.rating).toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -641,6 +830,15 @@ export default function ChatPage() {
       {
         selectedMovie && (
           <div
+            /* 👇 ADD THIS ENTIRE ONCLICK HANDLER 👇 */
+            onClick={(e) => {
+              // e.target === e.currentTarget ensures it ONLY closes if you click the dark background, 
+              // and NOT when you click the movie poster or text inside the box!
+              if (e.target === e.currentTarget) {
+                setSelectedMovie(null);
+                setInsight("");
+              }
+            }}
             style={{
               position: "fixed",
               top: 0,
@@ -737,7 +935,9 @@ export default function ChatPage() {
                       </span>
                     </div>
                   ) : (
-                    <p style={{ lineHeight: "1.6", margin: 0 }}>{insight}</p>
+                    <p style={{ lineHeight: "1.6", margin: 0, color: "#ccc" }}>
+                      {renderFormattedText(animatedInsight || insight)}
+                    </p>
                   )}
                 </div>
               )}
