@@ -674,6 +674,7 @@ export default function ChatPage() {
           background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent);
           margin-bottom: 52px;
         }
+          
 
         /* ═══ MESSAGES ═══ */
         .msg-enter { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
