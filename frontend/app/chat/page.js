@@ -11,15 +11,11 @@ export default function ChatPage() {
   const [insightLoading, setInsightLoading] = useState(false);
   const [trending, setTrending] = useState([]);
   const [animatedInsight, setAnimatedInsight] = useState("");
-  const [playingTrailerId, setPlayingTrailerId] = useState(null);
-  const [playingMovie, setPlayingMovie] = useState(null);
-  const [popoutStyle, setPopoutStyle] = useState({});
   const [selectedMovie, setSelectedMovie] = useState(null);
   const hoverTimerRef = useRef(null);
   const rowRef = useRef(null);
-  const [hoveredMovie, setHoveredMovie] = useState(null);
 
-  // ── NEW: Autocomplete state ──
+  // ── Autocomplete state ──
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -27,7 +23,10 @@ export default function ChatPage() {
   const searchRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // ── NEW: Debounced autocomplete fetch ──
+  // ── NEW: Skeleton loading state for trending ──
+  const [trendingLoading, setTrendingLoading] = useState(true);
+
+  // ── Debounced autocomplete fetch ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = message.trim();
@@ -59,7 +58,7 @@ export default function ChatPage() {
     return () => clearTimeout(debounceRef.current);
   }, [message]);
 
-  // ── NEW: Close dropdown on outside click ──
+  // ── Close dropdown on outside click ──
   useEffect(() => {
     const handler = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
@@ -71,7 +70,7 @@ export default function ChatPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── NEW: Keyboard navigation handler ──
+  // ── Keyboard navigation ──
   const handleKeyDown = (e) => {
     if (!showSuggestions) {
       if (e.key === "Enter" && !loading) sendMessage();
@@ -97,37 +96,11 @@ export default function ChatPage() {
     }
   };
 
-  // ── NEW: Select a suggestion and fire search ──
+  // ── Select suggestion ──
   const selectSuggestion = (movie) => {
     setShowSuggestions(false);
     setActiveIndex(-1);
     sendMessage(movie.title);
-  };
-
-  /* ─────────────────────────────────────────────────────────
-     FIXED-POSITION POPOUT
-  ───────────────────────────────────────────────────────── */
-  const handleCardMouseEnter = (e, movie) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const PW = 460, PH = 310;
-    let left = rect.left + rect.width / 2 - PW / 2;
-    let top = rect.top + rect.height / 2 - PH / 2;
-    left = Math.max(12, Math.min(left, window.innerWidth - PW - 12));
-    top = Math.max(12, Math.min(top, window.innerHeight - PH - 12));
-    setPopoutStyle({ top, left, width: PW, height: PH });
-
-    clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => {
-      setPlayingTrailerId(movie.tmdbId);
-      setPlayingMovie(movie);
-    }, 1000);
-  };
-
-  const handleCardMouseLeave = () => {
-    clearTimeout(hoverTimerRef.current);
-    setPlayingTrailerId(null);
-    setPlayingMovie(null);
-    setHoveredMovie(null);
   };
 
   /* ─── ROW SCROLL ─── */
@@ -171,12 +144,15 @@ export default function ChatPage() {
       setTimeout(() => go(`msg-${messages.length - 1}`), 160);
   }, [loading, messages.length]);
 
-  /* ─── FETCH TRENDING ─── */
+  /* ─── FETCH TRENDING — updated to set trendingLoading ─── */
   useEffect(() => {
     fetch("http://localhost:5000/api/movies/trending")
       .then((r) => r.json())
-      .then((d) => setTrending(d.movies || []))
-      .catch(console.error);
+      .then((d) => {
+        setTrending(d.movies || []);
+        setTrendingLoading(false);
+      })
+      .catch(() => setTrendingLoading(false));
   }, []);
 
   /* ─── TYPEWRITER ─── */
@@ -196,14 +172,11 @@ export default function ChatPage() {
     setAnimatedInsight("");
     setInsightLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:5000/api/chat/movie-insight",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        }
-      );
+      const res = await fetch("http://localhost:5000/api/chat/movie-insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
       const data = await res.json();
       const txt = data.insight || data.message || "No AI insight available.";
       await typeText(txt, setAnimatedInsight);
@@ -215,7 +188,7 @@ export default function ChatPage() {
     }
   };
 
-  /* ─── SEND MESSAGE — now accepts optional override text ─── */
+  /* ─── SEND MESSAGE ─── */
   const sendMessage = async (overrideText) => {
     const cur = (overrideText !== undefined ? overrideText : message).trim();
     if (!cur || loading) return;
@@ -229,15 +202,12 @@ export default function ChatPage() {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 50));
     try {
-      const res = await fetch(
-        "http://localhost:5000/api/chat/movie-chat",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-          body: JSON.stringify({ message: cur }),
-        }
-      );
+      const res = await fetch("http://localhost:5000/api/chat/movie-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ message: cur }),
+      });
       const data = await res.json();
       const reply =
         data.reply ||
@@ -286,7 +256,96 @@ export default function ChatPage() {
         )
       ) ?? "";
 
-  /* ─── REUSABLE MOVIE CARD ─── */
+  /* ══════════════════════════════════════════════════════════
+     NEW: SKELETON CARD COMPONENT
+     variant = "row" | "grid"
+  ══════════════════════════════════════════════════════════ */
+  const SkeletonCard = ({ variant }) => {
+    const isRow = variant === "row";
+    return isRow ? (
+      /* ── ROW SKELETON (matches trending card exactly) ── */
+      <div
+        style={{
+          minWidth: 158,
+          width: 158,
+          flexShrink: 0,
+        }}
+      >
+        {/* poster */}
+        <div
+          className="skeleton"
+          style={{
+            width: 158,
+            height: 238,
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
+        />
+        {/* title line */}
+        <div
+          className="skeleton"
+          style={{
+            marginTop: 10,
+            height: 13,
+            borderRadius: 6,
+            width: "80%",
+          }}
+        />
+        {/* rating line */}
+        <div
+          className="skeleton"
+          style={{
+            marginTop: 6,
+            height: 11,
+            borderRadius: 6,
+            width: "40%",
+          }}
+        />
+      </div>
+    ) : (
+      /* ── GRID SKELETON (matches grid card exactly) ── */
+      <div
+        style={{
+          borderRadius: 12,
+          overflow: "hidden",
+          border: "1px solid rgba(255,255,255,0.06)",
+          background: "#111",
+        }}
+      >
+        {/* poster */}
+        <div
+          className="skeleton"
+          style={{ height: 260, width: "100%" }}
+        />
+        {/* body */}
+        <div style={{ padding: "14px 14px 16px" }}>
+          {/* title */}
+          <div
+            className="skeleton"
+            style={{ height: 14, borderRadius: 6, width: "85%", marginBottom: 8 }}
+          />
+          {/* second title line */}
+          <div
+            className="skeleton"
+            style={{ height: 14, borderRadius: 6, width: "55%", marginBottom: 12 }}
+          />
+          {/* rating + year row */}
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div
+              className="skeleton"
+              style={{ height: 11, borderRadius: 6, width: "30%" }}
+            />
+            <div
+              className="skeleton"
+              style={{ height: 11, borderRadius: 6, width: "20%" }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ─── MOVIE CARD ─── */
   const MovieCard = ({ movie, variant }) => {
     const isRow = variant === "row";
     return (
@@ -312,11 +371,7 @@ export default function ChatPage() {
         {isRow ? (
           <>
             <div className="card-poster-wrap row-poster">
-              <img
-                src={movie.poster}
-                alt={movie.title}
-                className="card-poster"
-              />
+              <img src={movie.poster} alt={movie.title} className="card-poster" />
               <div className="card-shine" />
               <div className="card-hover-overlay">
                 <span className="card-play-btn">▶</span>
@@ -324,19 +379,13 @@ export default function ChatPage() {
             </div>
             <div className="card-meta">
               <p className="card-title">{movie.title}</p>
-              <p className="card-rating-text">
-                ★ {Number(movie.rating).toFixed(1)}
-              </p>
+              <p className="card-rating-text">★ {Number(movie.rating).toFixed(1)}</p>
             </div>
           </>
         ) : (
           <div className="grid-card-inner">
             <div className="card-poster-wrap grid-poster">
-              <img
-                src={movie.poster}
-                alt={movie.title}
-                className="card-poster"
-              />
+              <img src={movie.poster} alt={movie.title} className="card-poster" />
               <div className="card-shine" />
               <div className="card-hover-overlay">
                 <span className="card-play-btn">▶</span>
@@ -345,12 +394,8 @@ export default function ChatPage() {
             <div className="grid-card-body">
               <h3 className="grid-card-title">{movie.title}</h3>
               <div className="grid-card-foot">
-                <span className="card-rating-text">
-                  ★ {Number(movie.rating).toFixed(1)}
-                </span>
-                <span className="grid-card-year">
-                  {movie.releaseDate?.slice(0, 4)}
-                </span>
+                <span className="card-rating-text">★ {Number(movie.rating).toFixed(1)}</span>
+                <span className="grid-card-year">{movie.releaseDate?.slice(0, 4)}</span>
               </div>
             </div>
           </div>
@@ -403,6 +448,37 @@ export default function ChatPage() {
         }
 
         .app-root { min-height: 100vh; background: var(--bg); color: white; overflow-x: hidden; }
+
+        /* ════════════════════════════════
+           NEW: SHIMMER SKELETON
+        ════════════════════════════════ */
+        .skeleton {
+          background: linear-gradient(
+            90deg,
+            #1c1c1c 0%,
+            #2a2a2a 40%,
+            #1c1c1c 80%
+          );
+          background-size: 600px 100%;
+          animation: shimmer 1.6s infinite linear;
+        }
+        @keyframes shimmer {
+          0%   { background-position: -600px 0; }
+          100% { background-position:  600px 0; }
+        }
+
+        /* Stagger skeleton children so shimmer doesn't look in sync */
+        .skeleton-row-wrap > div:nth-child(2)  .skeleton { animation-delay: 0.1s; }
+        .skeleton-row-wrap > div:nth-child(3)  .skeleton { animation-delay: 0.2s; }
+        .skeleton-row-wrap > div:nth-child(4)  .skeleton { animation-delay: 0.3s; }
+        .skeleton-row-wrap > div:nth-child(5)  .skeleton { animation-delay: 0.4s; }
+        .skeleton-row-wrap > div:nth-child(6)  .skeleton { animation-delay: 0.5s; }
+        .skeleton-row-wrap > div:nth-child(7)  .skeleton { animation-delay: 0.6s; }
+        .skeleton-row-wrap > div:nth-child(8)  .skeleton { animation-delay: 0.7s; }
+
+        .skeleton-grid-wrap > div:nth-child(2) .skeleton { animation-delay: 0.12s; }
+        .skeleton-grid-wrap > div:nth-child(3) .skeleton { animation-delay: 0.24s; }
+        .skeleton-grid-wrap > div:nth-child(4) .skeleton { animation-delay: 0.36s; }
 
         /* ═══ HERO ═══ */
         .hero {
@@ -482,19 +558,11 @@ export default function ChatPage() {
         .send-btn:active:not(:disabled) { transform: translateY(0); }
         .send-btn:disabled { opacity: 0.52; cursor: not-allowed; }
 
-        /* ════════════════════════════════
-           NEW: AUTOCOMPLETE DROPDOWN
-        ════════════════════════════════ */
+        /* ═══ AUTOCOMPLETE ═══ */
         .autocomplete-dropdown {
-          position: absolute;
-          top: calc(100% + 8px);
-          left: 0;
-          right: 0;
-          background: #0f0f0f;
-          border: 1px solid rgba(201,162,39,0.22);
-          border-radius: 14px;
-          overflow: hidden;
-          z-index: 999;
+          position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+          background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22);
+          border-radius: 14px; overflow: hidden; z-index: 999;
           box-shadow: 0 24px 60px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.03);
           animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
@@ -508,16 +576,14 @@ export default function ChatPage() {
           transition: background 0.15s ease;
           border-left: 2px solid transparent;
         }
-        .auto-item:hover,
-        .auto-item.active {
+        .auto-item:hover, .auto-item.active {
           background: rgba(201,162,39,0.07);
           border-left-color: var(--gold);
         }
         .auto-item + .auto-item { border-top: 1px solid rgba(255,255,255,0.04); }
         .auto-poster {
           width: 34px; height: 51px; border-radius: 5px;
-          object-fit: cover; flex-shrink: 0;
-          background: #1a1a1a;
+          object-fit: cover; flex-shrink: 0; background: #1a1a1a;
         }
         .auto-poster-placeholder {
           width: 34px; height: 51px; border-radius: 5px;
@@ -527,25 +593,18 @@ export default function ChatPage() {
         }
         .auto-title {
           font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.88);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          margin-bottom: 3px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
         }
         .auto-meta { font-size: 12px; color: var(--gold); opacity: 0.8; }
         .auto-footer {
-          padding: 7px 15px;
-          border-top: 1px solid rgba(255,255,255,0.05);
+          padding: 7px 15px; border-top: 1px solid rgba(255,255,255,0.05);
           display: flex; gap: 14px;
         }
-        .auto-hint {
-          font-size: 11px; color: rgba(255,255,255,0.22);
-          display: flex; align-items: center; gap: 5px;
-        }
+        .auto-hint { font-size: 11px; color: rgba(255,255,255,0.22); display: flex; align-items: center; gap: 5px; }
         .auto-hint-key {
           background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 4px; padding: 1px 5px; font-size: 10px;
-          color: rgba(255,255,255,0.35);
+          border-radius: 4px; padding: 1px 5px; font-size: 10px; color: rgba(255,255,255,0.35);
         }
-        /* searching pulse on icon */
         .search-icon.searching { animation: iconPulse 0.8s ease infinite alternate; }
         @keyframes iconPulse {
           from { opacity: 0.7; }
@@ -569,8 +628,7 @@ export default function ChatPage() {
         .trending-wrap { margin-bottom: 66px; }
         .trending-row-container { position: relative; }
         .row-fade-left, .row-fade-right {
-          position: absolute; top: 0; bottom: 0; width: 80px;
-          z-index: 10; pointer-events: none;
+          position: absolute; top: 0; bottom: 0; width: 80px; z-index: 10; pointer-events: none;
         }
         .row-fade-left  { left: 0;  background: linear-gradient(to right, var(--bg) 15%, transparent); }
         .row-fade-right { right: 0; background: linear-gradient(to left,  var(--bg) 15%, transparent); }
@@ -587,9 +645,14 @@ export default function ChatPage() {
           display: flex; gap: 16px;
           overflow-x: auto; scroll-behavior: smooth;
           scrollbar-width: none; -ms-overflow-style: none;
-          padding: 14px 40px 22px;
+          padding: 14px 4px 22px;
         }
         .movie-row::-webkit-scrollbar { display: none; }
+
+        /* NEW: skeleton section title pulse */
+        .skeleton-section-title {
+          height: 23px; width: 160px; border-radius: 6px; margin-bottom: 26px;
+        }
 
         /* ═══ CARD SHARED ═══ */
         .card-poster-wrap { position: relative; overflow: hidden; background: #1a1a1a; }
@@ -640,45 +703,15 @@ export default function ChatPage() {
         .grid-card-foot  { display: flex; justify-content: space-between; align-items: center; }
         .grid-card-year  { font-size: 11px; color: var(--text-muted); }
 
-        /* ═══ GLOBAL POPOUT TRAILER ═══ */
-        .trailer-popout {
-          position: fixed; z-index: 9500; pointer-events: none;
-          border-radius: 14px; overflow: hidden;
-          background: var(--bg2); border: 1px solid rgba(201,162,39,0.18);
-          box-shadow: 0 36px 76px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.04);
-          display: flex; flex-direction: column;
-          animation: popoutIn 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-        }
-        @keyframes popoutIn {
-          from { opacity: 0; transform: scale(0.84); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-        .trailer-meta {
-          padding: 10px 14px; display: flex; justify-content: space-between;
-          align-items: center; flex-shrink: 0;
-        }
-        .trailer-title {
-          font-size: 13px; font-weight: 600; color: #fff;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 72%;
-        }
-        .rating-pill {
-          background: linear-gradient(135deg, var(--gold), var(--gold-dk));
-          padding: 3px 9px; border-radius: 6px;
-          font-size: 12px; font-weight: 700; color: #fff;
-          letter-spacing: 0.03em; flex-shrink: 0;
-        }
-
         /* ═══ DIVIDER ═══ */
         .section-divider {
           height: 1px;
           background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent);
           margin-bottom: 52px;
         }
-          
 
         /* ═══ MESSAGES ═══ */
         .msg-enter { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
         .user-row { text-align: right; margin-bottom: 20px; scroll-margin-top: 130px; }
         .user-bubble {
           display: inline-block;
@@ -688,7 +721,6 @@ export default function ChatPage() {
           font-size: 15px; font-weight: 500; letter-spacing: 0.01em;
           box-shadow: 0 4px 18px rgba(201,162,39,0.1);
         }
-
         .typing-row { margin-bottom: 20px; scroll-margin-top: 130px; }
         .typing-bubble {
           display: inline-block;
@@ -708,6 +740,15 @@ export default function ChatPage() {
         @keyframes bounce {
           0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
           40%           { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* NEW: skeleton grid below typing dots */
+        .typing-skeleton-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+          gap: 18px;
+          margin-top: 18px;
+          opacity: 0.6;
         }
 
         .ai-box {
@@ -744,8 +785,7 @@ export default function ChatPage() {
           background: rgba(0,0,0,0.9);
           display: flex; align-items: center; justify-content: center;
           backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-          animation: fadeIn 0.25s ease both;
-          padding: 20px;
+          animation: fadeIn 0.25s ease both; padding: 20px;
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .modal-content {
@@ -813,6 +853,7 @@ export default function ChatPage() {
           .hero-inner, .searchbar-inner, .main { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
           .movies-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
+          .typing-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
 
@@ -831,8 +872,6 @@ export default function ChatPage() {
       {/* ═══════════ STICKY SEARCH ═══════════ */}
       <div className="searchbar">
         <div className="searchbar-inner">
-
-          {/* ── NEW: ref wrapper for outside-click detection ── */}
           <div className="search-wrap" ref={searchRef}>
             <span className={`search-icon${isSearching ? " searching" : ""}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -850,8 +889,6 @@ export default function ChatPage() {
               onKeyDown={handleKeyDown}
               autoComplete="off"
             />
-
-            {/* ── NEW: AUTOCOMPLETE DROPDOWN ── */}
             {showSuggestions && suggestions.length > 0 && (
               <div className="autocomplete-dropdown">
                 {suggestions.map((movie, i) => (
@@ -880,20 +917,13 @@ export default function ChatPage() {
                   </div>
                 ))}
                 <div className="auto-footer">
-                  <span className="auto-hint">
-                    <span className="auto-hint-key">↑↓</span> navigate
-                  </span>
-                  <span className="auto-hint">
-                    <span className="auto-hint-key">↵</span> select
-                  </span>
-                  <span className="auto-hint">
-                    <span className="auto-hint-key">esc</span> close
-                  </span>
+                  <span className="auto-hint"><span className="auto-hint-key">↑↓</span> navigate</span>
+                  <span className="auto-hint"><span className="auto-hint-key">↵</span> select</span>
+                  <span className="auto-hint"><span className="auto-hint-key">esc</span> close</span>
                 </div>
               </div>
             )}
           </div>
-
           <button className="send-btn" onClick={() => sendMessage()} disabled={loading}>
             {loading ? "…" : "Search"}
           </button>
@@ -903,13 +933,32 @@ export default function ChatPage() {
       {/* ═══════════ MAIN ═══════════ */}
       <main className="main">
 
-        {/* ── TRENDING ROW ── */}
-        {trending.length > 0 && (
-          <div className="trending-wrap">
-            <div className="section-label">
-              <div className="section-bar" />
+        {/* ══════════════════════════════════════════
+            NEW: TRENDING — skeleton OR real content
+        ══════════════════════════════════════════ */}
+        <div className="trending-wrap">
+          <div className="section-label">
+            <div className="section-bar" />
+            {/* title also skeletons while loading */}
+            {trendingLoading ? (
+              <div className="skeleton skeleton-section-title" />
+            ) : (
               <h2 className="section-title">Trending Now</h2>
+            )}
+          </div>
+
+          {trendingLoading ? (
+            /* ── SKELETON ROW ── */
+            <div
+              className="movie-row skeleton-row-wrap"
+              style={{ paddingTop: 14, paddingBottom: 22 }}
+            >
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonCard key={`sk-row-${i}`} variant="row" />
+              ))}
             </div>
+          ) : trending.length > 0 ? (
+            /* ── REAL TRENDING ROW ── */
             <div
               className="trending-row-container"
               onMouseEnter={() => setIsHovered(true)}
@@ -925,11 +974,11 @@ export default function ChatPage() {
                 ))}
               </div>
             </div>
-          </div>
-        )}
+          ) : null}
+        </div>
 
         {/* ── DIVIDER ── */}
-        {trending.length > 0 && messages.some((m) => m.role !== "typing") && (
+        {!trendingLoading && messages.some((m) => m.role !== "typing") && (
           <div className="section-divider" />
         )}
 
@@ -944,11 +993,20 @@ export default function ChatPage() {
 
           if (msg.role === "typing")
             return (
+              /* ══════════════════════════════════════════
+                 NEW: typing bubble + skeleton grid below
+              ══════════════════════════════════════════ */
               <div key={i} id="typing-dots" className="typing-row msg-enter">
                 <div className="typing-bubble">
                   <div className="typing-dots">
                     <span /><span /><span />
                   </div>
+                </div>
+                {/* skeleton preview of upcoming movie cards */}
+                <div className="typing-skeleton-grid skeleton-grid-wrap">
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <SkeletonCard key={`sk-grid-${j}`} variant="grid" />
+                  ))}
                 </div>
               </div>
             );
@@ -980,10 +1038,7 @@ export default function ChatPage() {
         <div
           className="modal-overlay"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setSelectedMovie(null);
-              setInsight("");
-            }
+            if (e.target === e.currentTarget) { setSelectedMovie(null); setInsight(""); }
           }}
         >
           <div className="modal-content">
