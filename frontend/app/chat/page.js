@@ -2,6 +2,96 @@
 
 import { useState, useEffect, useRef } from "react";
 
+/* ══════════════════════════════════════════════════════════
+   MOOD BOARD DATA
+   Each mood fires a specific AI query and has its own vibe
+══════════════════════════════════════════════════════════ */
+import { 
+  CloudRain, 
+  Zap, 
+  Droplets, 
+  Brain, 
+  Heart, 
+  Sun, 
+  Gem, 
+  Compass 
+} from "lucide-react";
+
+const MOODS = [
+  {
+    label: "Rainy Night In",
+    icon: CloudRain,
+    description: "Cozy, slow, atmospheric",
+    query: "cozy atmospheric movies for a rainy night at home",
+    gradient: "linear-gradient(135deg, #1a2a4a 0%, #0d1b2e 100%)",
+    glow: "rgba(80,120,200,0.22)",
+    border: "rgba(80,140,220,0.2)",
+  },
+  {
+    label: "Hype & Adrenaline",
+    icon: Zap,
+    description: "Fast, loud, electric",
+    query: "high energy action packed adrenaline rush movies",
+    gradient: "linear-gradient(135deg, #2d1200 0%, #1a0800 100%)",
+    glow: "rgba(220,100,20,0.22)",
+    border: "rgba(240,120,30,0.25)",
+  },
+  {
+    label: "Cry It Out",
+    icon: Droplets,
+    description: "Emotional, raw, cathartic",
+    query: "deeply emotional movies that will make me cry",
+    gradient: "linear-gradient(135deg, #0e1e2e 0%, #071018 100%)",
+    glow: "rgba(60,160,200,0.2)",
+    border: "rgba(80,170,210,0.2)",
+  },
+  {
+    label: "Mind-Bending",
+    icon: Brain,
+    description: "Twisted, cerebral, surreal",
+    query: "mind bending cerebral movies that mess with your head",
+    gradient: "linear-gradient(135deg, #1a0d2e 0%, #0d0618 100%)",
+    glow: "rgba(140,60,220,0.22)",
+    border: "rgba(160,80,240,0.22)",
+  },
+  {
+    label: "Date Night",
+    icon: Heart,
+    description: "Charming, warm, romantic",
+    query: "romantic charming movies perfect for a date night",
+    gradient: "linear-gradient(135deg, #2e1020 0%, #1a0810 100%)",
+    glow: "rgba(220,80,120,0.2)",
+    border: "rgba(230,100,140,0.22)",
+  },
+  {
+    label: "Feel-Good Friday",
+    icon: Sun,
+    description: "Fun, uplifting, joyful",
+    query: "feel good uplifting movies to watch on a Friday night",
+    gradient: "linear-gradient(135deg, #1e1800 0%, #120f00 100%)",
+    glow: "rgba(220,180,30,0.2)",
+    border: "rgba(230,190,40,0.22)",
+  },
+  {
+    label: "Hidden Gems",
+    icon: Gem,
+    description: "Underrated, surprising, fresh",
+    query: "underrated hidden gem movies most people haven't seen",
+    gradient: "linear-gradient(135deg, #001e1a 0%, #00100e 100%)",
+    glow: "rgba(30,200,170,0.2)",
+    border: "rgba(40,210,180,0.2)",
+  },
+  {
+    label: "Epic Adventure",
+    icon: Compass,
+    description: "Grand, sweeping, legendary",
+    query: "epic adventure movies with grand sweeping storytelling",
+    gradient: "linear-gradient(135deg, #1a1200 0%, #0e0a00 100%)",
+    glow: "rgba(180,140,40,0.2)",
+    border: "rgba(200,160,50,0.2)",
+  },
+];
+
 export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -24,12 +114,26 @@ export default function ChatPage() {
   const searchRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // ── NEW: Cinema Mode ──
+  // ── Cinema Mode ──
   const [cinemaMode, setCinemaMode] = useState(false);
   const [ambientColor, setAmbientColor] = useState("201,162,39");
 
+  // ── NEW: Mood board — show when no messages ──
+  const showMoodBoard = messages.length === 0 && !loading;
+
+  // ── NEW: track which tile was clicked for press animation ──
+  const [activeMoodIdx, setActiveMoodIdx] = useState(null);
+
+  /* ── NEW: fire a mood query ── */
+  const fireMood = async (mood, idx) => {
+    setActiveMoodIdx(idx);
+    await new Promise((r) => setTimeout(r, 180));
+    setActiveMoodIdx(null);
+    sendMessage(mood.query);
+  };
+
   /* ══════════════════════════════════════════════════════════
-     NEW: Extract dominant color from poster via Canvas API
+     Cinema: extract dominant color
   ══════════════════════════════════════════════════════════ */
   const extractDominantColor = (imageUrl) => {
     return new Promise((resolve) => {
@@ -40,70 +144,45 @@ export default function ChatPage() {
         try {
           const canvas = document.createElement("canvas");
           const SIZE = 80;
-          canvas.width = SIZE;
-          canvas.height = SIZE;
+          canvas.width = SIZE; canvas.height = SIZE;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, SIZE, SIZE);
-          // Sample a grid of pixels from the center-bottom area (most colorful for posters)
           const data = ctx.getImageData(SIZE * 0.2, SIZE * 0.3, SIZE * 0.6, SIZE * 0.5).data;
           let r = 0, g = 0, b = 0, count = 0;
           for (let i = 0; i < data.length; i += 16) {
-            // Skip very dark or very desaturated pixels
             const pr = data[i], pg = data[i + 1], pb = data[i + 2];
             const brightness = (pr + pg + pb) / 3;
-            const max = Math.max(pr, pg, pb);
-            const min = Math.min(pr, pg, pb);
+            const max = Math.max(pr, pg, pb), min = Math.min(pr, pg, pb);
             const saturation = max === 0 ? 0 : (max - min) / max;
-            if (brightness > 20 && brightness < 240 && saturation > 0.15) {
-              r += pr; g += pg; b += pb; count++;
-            }
+            if (brightness > 20 && brightness < 240 && saturation > 0.15) { r += pr; g += pg; b += pb; count++; }
           }
           if (count === 0) { resolve("201,162,39"); return; }
-          r = Math.round(r / count);
-          g = Math.round(g / count);
-          b = Math.round(b / count);
-          // Boost saturation so the glow is vivid, not muddy
-          const boost = 1.35;
-          const avg = (r + g + b) / 3;
+          r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+          const boost = 1.35, avg = (r + g + b) / 3;
           r = Math.min(255, Math.round(avg + (r - avg) * boost));
           g = Math.min(255, Math.round(avg + (g - avg) * boost));
           b = Math.min(255, Math.round(avg + (b - avg) * boost));
           resolve(`${r},${g},${b}`);
-        } catch {
-          resolve("201,162,39");
-        }
+        } catch { resolve("201,162,39"); }
       };
       img.onerror = () => resolve("201,162,39");
-      // Use w500 poster for color accuracy
       img.src = imageUrl;
     });
   };
 
-  /* ── Enter cinema mode ── */
   const enterCinema = async () => {
     if (selectedMovie?.poster) {
       const color = await extractDominantColor(selectedMovie.poster);
       setAmbientColor(color);
     }
     setCinemaMode(true);
-    // Prevent body scroll in cinema mode
     document.body.style.overflow = "hidden";
   };
 
-  /* ── Exit cinema mode ── */
-  const exitCinema = () => {
-    setCinemaMode(false);
-    document.body.style.overflow = "";
-  };
+  const exitCinema = () => { setCinemaMode(false); document.body.style.overflow = ""; };
+  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); };
 
-  /* ── Clean up on modal close ── */
-  const closeModal = () => {
-    exitCinema();
-    setSelectedMovie(null);
-    setInsight("");
-  };
-
-  // ── Debounced autocomplete ──
+  /* ── Autocomplete ── */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = message.trim();
@@ -114,30 +193,21 @@ export default function ChatPage() {
         const res = await fetch(`http://localhost:5000/api/movies/search?query=${encodeURIComponent(trimmed)}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter((m) => m.poster_path).slice(0, 6);
-        setSuggestions(results);
-        setShowSuggestions(results.length > 0);
-        setActiveIndex(-1);
-      } catch {
-        setSuggestions([]); setShowSuggestions(false);
-      } finally {
-        setIsSearching(false);
-      }
+        setSuggestions(results); setShowSuggestions(results.length > 0); setActiveIndex(-1);
+      } catch { setSuggestions([]); setShowSuggestions(false); }
+      finally { setIsSearching(false); }
     }, 350);
     return () => clearTimeout(debounceRef.current);
   }, [message]);
 
-  // ── Outside click ──
   useEffect(() => {
     const handler = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
-        setShowSuggestions(false); setActiveIndex(-1);
-      }
+      if (searchRef.current && !searchRef.current.contains(e.target)) { setShowSuggestions(false); setActiveIndex(-1); }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Keyboard nav ──
   const handleKeyDown = (e) => {
     if (!showSuggestions) { if (e.key === "Enter" && !loading) sendMessage(); return; }
     if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1)); }
@@ -149,21 +219,15 @@ export default function ChatPage() {
     } else if (e.key === "Escape") { setShowSuggestions(false); setActiveIndex(-1); }
   };
 
-  const selectSuggestion = (movie) => {
-    setShowSuggestions(false); setActiveIndex(-1); sendMessage(movie.title);
-  };
+  const selectSuggestion = (movie) => { setShowSuggestions(false); setActiveIndex(-1); sendMessage(movie.title); };
 
-  /* ─── ROW SCROLL ─── */
+  /* ── Row scroll ── */
   const scrollRow = (dir) => {
     if (!rowRef.current) return;
     const { scrollLeft, clientWidth } = rowRef.current;
-    rowRef.current.scrollTo({
-      left: dir === "left" ? scrollLeft - clientWidth * 0.75 : scrollLeft + clientWidth * 0.75,
-      behavior: "smooth",
-    });
+    rowRef.current.scrollTo({ left: dir === "left" ? scrollLeft - clientWidth * 0.75 : scrollLeft + clientWidth * 0.75, behavior: "smooth" });
   };
 
-  /* ─── AUTO-SCROLL ─── */
   useEffect(() => {
     if (isHovered || trending.length === 0) return;
     const id = setInterval(() => {
@@ -175,7 +239,6 @@ export default function ChatPage() {
     return () => clearInterval(id);
   }, [isHovered, trending]);
 
-  /* ─── SCROLL TO MSG ─── */
   useEffect(() => {
     const go = (id) => {
       const el = document.getElementById(id);
@@ -185,7 +248,6 @@ export default function ChatPage() {
     if (!loading && messages.length > 0) setTimeout(() => go(`msg-${messages.length - 1}`), 160);
   }, [loading, messages.length]);
 
-  /* ─── FETCH TRENDING ─── */
   useEffect(() => {
     fetch("http://localhost:5000/api/movies/trending")
       .then((r) => r.json())
@@ -193,32 +255,24 @@ export default function ChatPage() {
       .catch(() => setTrendingLoading(false));
   }, []);
 
-  /* ─── TYPEWRITER ─── */
   const typeText = async (text, setter) => {
     setter(""); let cur = "";
-    for (const w of text.split(" ")) {
-      cur += w + " "; setter(cur);
-      await new Promise((r) => setTimeout(r, 28));
-    }
+    for (const w of text.split(" ")) { cur += w + " "; setter(cur); await new Promise((r) => setTimeout(r, 28)); }
   };
 
-  /* ─── FETCH INSIGHT ─── */
   const fetchInsight = async (title) => {
     setInsight(""); setAnimatedInsight(""); setInsightLoading(true);
     try {
       const res = await fetch("http://localhost:5000/api/chat/movie-insight", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }),
       });
       const data = await res.json();
       const txt = data.insight || data.message || "No AI insight available.";
-      await typeText(txt, setAnimatedInsight);
-      setInsight(txt);
+      await typeText(txt, setAnimatedInsight); setInsight(txt);
     } catch { setInsight("Failed to generate insight."); }
     finally { setInsightLoading(false); }
   };
 
-  /* ─── SEND MESSAGE ─── */
   const sendMessage = async (overrideText) => {
     const cur = (overrideText !== undefined ? overrideText : message).trim();
     if (!cur || loading) return;
@@ -245,7 +299,6 @@ export default function ChatPage() {
     } finally { setLoading(false); }
   };
 
-  /* ─── BOLD RENDERER ─── */
   const renderBold = (text) =>
     text?.split(/(\*\*.*?\*\*)/g).map((p, i) =>
       p.startsWith("**") && p.endsWith("**")
@@ -253,7 +306,7 @@ export default function ChatPage() {
         : p
     ) ?? "";
 
-  /* ─── SKELETON CARD ─── */
+  /* ── Skeleton ── */
   const SkeletonCard = ({ variant }) => {
     const isRow = variant === "row";
     return isRow ? (
@@ -277,7 +330,7 @@ export default function ChatPage() {
     );
   };
 
-  /* ─── MOVIE CARD ─── */
+  /* ── Movie Card ── */
   const MovieCard = ({ movie, variant }) => {
     const isRow = variant === "row";
     return (
@@ -338,20 +391,11 @@ export default function ChatPage() {
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #0e0e0e; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(var(--gold), var(--gold-dk)); border-radius: 99px; }
-
-        .grain {
-          position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.03;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-          background-size: 120px;
-        }
+        .grain { position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.03; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 120px; }
         .app-root { min-height: 100vh; background: var(--bg); color: white; overflow-x: hidden; }
 
         /* ═══ SKELETON ═══ */
-        .skeleton {
-          background: linear-gradient(90deg, #1c1c1c 0%, #2a2a2a 40%, #1c1c1c 80%);
-          background-size: 600px 100%;
-          animation: shimmer 1.6s infinite linear;
-        }
+        .skeleton { background: linear-gradient(90deg, #1c1c1c 0%, #2a2a2a 40%, #1c1c1c 80%); background-size: 600px 100%; animation: shimmer 1.6s infinite linear; }
         @keyframes shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
         .skeleton-row-wrap > div:nth-child(2) .skeleton { animation-delay: 0.1s; }
         .skeleton-row-wrap > div:nth-child(3) .skeleton { animation-delay: 0.2s; }
@@ -364,69 +408,31 @@ export default function ChatPage() {
         .skeleton-grid-wrap > div:nth-child(3) .skeleton { animation-delay: 0.24s; }
         .skeleton-grid-wrap > div:nth-child(4) .skeleton { animation-delay: 0.36s; }
         .skeleton-section-title { height: 23px; width: 160px; border-radius: 6px; margin-bottom: 26px; }
-        .typing-skeleton-grid {
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
-          gap: 18px; margin-top: 18px; opacity: 0.6;
-        }
+        .typing-skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 18px; margin-top: 18px; opacity: 0.6; }
 
         /* ═══ HERO ═══ */
-        .hero {
-          position: relative;
-          background: linear-gradient(180deg, #0e0900 0%, var(--bg) 100%);
-          padding: 60px 0 0; border-bottom: 1px solid var(--border);
-        }
-        .hero-line {
-          position: absolute; top: 0; left: 0; right: 0; height: 2px;
-          background: linear-gradient(90deg, transparent 0%, var(--gold) 28%, var(--gold-lt) 50%, var(--gold) 72%, transparent 100%);
-        }
+        .hero { position: relative; background: linear-gradient(180deg, #0e0900 0%, var(--bg) 100%); padding: 60px 0 0; border-bottom: 1px solid var(--border); }
+        .hero-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent 0%, var(--gold) 28%, var(--gold-lt) 50%, var(--gold) 72%, transparent 100%); }
         .hero-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
         .hero-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; opacity: 0.85; animation: fadeUp 0.65s ease both; }
-        .hero-title {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(42px, 5.5vw, 70px); font-weight: 900; line-height: 1.04;
-          letter-spacing: -0.025em; margin-bottom: 12px;
-          background: linear-gradient(135deg, #fff 0%, #e8d58a 55%, var(--gold) 100%);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-          animation: fadeUp 0.65s 0.1s ease both;
-        }
+        .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(42px, 5.5vw, 70px); font-weight: 900; line-height: 1.04; letter-spacing: -0.025em; margin-bottom: 12px; background: linear-gradient(135deg, #fff 0%, #e8d58a 55%, var(--gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: fadeUp 0.65s 0.1s ease both; }
         .hero-sub { font-size: 15px; color: var(--text-muted); font-weight: 300; margin-bottom: 48px; animation: fadeUp 0.65s 0.2s ease both; }
 
         /* ═══ SEARCH ═══ */
-        .searchbar {
-          position: sticky; top: 0; z-index: 200;
-          background: rgba(8,8,8,0.92);
-          backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%);
-          border-bottom: 1px solid var(--border); padding: 13px 0;
-        }
+        .searchbar { position: sticky; top: 0; z-index: 200; background: rgba(8,8,8,0.92); backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%); border-bottom: 1px solid var(--border); padding: 13px 0; }
         .searchbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; display: flex; align-items: center; gap: 12px; }
         .search-wrap { position: relative; flex-grow: 1; max-width: 540px; }
         .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); opacity: 0.7; display: flex; align-items: center; pointer-events: none; z-index: 2; }
-        .search-input {
-          width: 100%; padding: 13px 16px 13px 46px; border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: white;
-          font-size: 15px; font-family: 'DM Sans', sans-serif; transition: border-color 0.25s, box-shadow 0.25s;
-        }
+        .search-input { width: 100%; padding: 13px 16px 13px 46px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: white; font-size: 15px; font-family: 'DM Sans', sans-serif; transition: border-color 0.25s, box-shadow 0.25s; }
         .search-input::placeholder { color: var(--text-muted); }
         .search-input:focus { outline: none; border-color: rgba(201,162,39,0.55); box-shadow: 0 0 0 3px rgba(201,162,39,0.07); }
-        .send-btn {
-          padding: 13px 30px; border-radius: 10px; border: 1px solid rgba(201,162,39,0.45);
-          background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%);
-          color: #0a0800; font-weight: 700; font-size: 13px; font-family: 'DM Sans', sans-serif;
-          letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer;
-          transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s ease; white-space: nowrap;
-        }
+        .send-btn { padding: 13px 30px; border-radius: 10px; border: 1px solid rgba(201,162,39,0.45); background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%); color: #0a0800; font-weight: 700; font-size: 13px; font-family: 'DM Sans', sans-serif; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s ease; white-space: nowrap; }
         .send-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(201,162,39,0.38); }
         .send-btn:active:not(:disabled) { transform: translateY(0); }
         .send-btn:disabled { opacity: 0.52; cursor: not-allowed; }
 
         /* ═══ AUTOCOMPLETE ═══ */
-        .autocomplete-dropdown {
-          position: absolute; top: calc(100% + 8px); left: 0; right: 0;
-          background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22); border-radius: 14px;
-          overflow: hidden; z-index: 999;
-          box-shadow: 0 24px 60px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.03);
-          animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
+        .autocomplete-dropdown { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22); border-radius: 14px; overflow: hidden; z-index: 999; box-shadow: 0 24px 60px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.03); animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .auto-item { display: flex; align-items: center; gap: 13px; padding: 10px 15px; cursor: pointer; transition: background 0.15s ease; border-left: 2px solid transparent; }
         .auto-item:hover, .auto-item.active { background: rgba(201,162,39,0.07); border-left-color: var(--gold); }
@@ -446,6 +452,92 @@ export default function ChatPage() {
         .section-label { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
         .section-bar { width: 4px; height: 24px; flex-shrink: 0; background: linear-gradient(180deg, var(--gold-lt), var(--gold-dk)); border-radius: 2px; }
         .section-title { font-family: 'Playfair Display', serif; font-size: 23px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+
+        /* ═══════════════════════════════════════
+           NEW: MOOD BOARD
+        ═══════════════════════════════════════ */
+        .moodboard-wrap {
+          margin-bottom: 60px;
+          animation: fadeUp 0.55s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .moodboard-eyebrow {
+          font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+          text-transform: uppercase; color: var(--gold); opacity: 0.7;
+          margin-bottom: 10px;
+        }
+        .moodboard-heading {
+          font-family: 'Playfair Display', serif;
+          font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.75);
+          margin-bottom: 24px; letter-spacing: -0.01em;
+        }
+        .mood-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 14px;
+        }
+        .mood-tile {
+          position: relative; overflow: hidden;
+          border-radius: 16px; padding: 22px 20px 20px;
+          cursor: pointer; border: 1px solid;
+          transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                      box-shadow 0.32s ease,
+                      border-color 0.32s ease;
+          display: flex; flex-direction: column; gap: 8px;
+          min-height: 120px;
+        }
+        .mood-tile:hover {
+          transform: translateY(-6px) scale(1.02);
+        }
+        .mood-tile.pressed {
+          transform: scale(0.95);
+          transition: transform 0.12s ease;
+        }
+        /* shimmer sweep on hover */
+        .mood-tile::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%);
+          opacity: 0;
+          transition: opacity 0.3s ease;
+          pointer-events: none;
+          border-radius: 16px;
+        }
+        .mood-tile:hover::after { opacity: 1; }
+
+        .mood-icon {
+          font-size: 26px; line-height: 1;
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+        }
+        .mood-label {
+          font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9);
+          letter-spacing: 0.01em; line-height: 1.2;
+        }
+        .mood-desc {
+          font-size: 11px; color: rgba(255,255,255,0.38);
+          font-weight: 400; letter-spacing: 0.02em;
+          line-height: 1.3;
+        }
+        /* arrow that appears on hover */
+        .mood-arrow {
+          position: absolute; bottom: 14px; right: 16px;
+          font-size: 16px; color: rgba(255,255,255,0.25);
+          transform: translateX(-4px);
+          transition: transform 0.28s ease, color 0.28s ease, opacity 0.28s ease;
+          opacity: 0;
+        }
+        .mood-tile:hover .mood-arrow {
+          transform: translateX(0);
+          color: rgba(255,255,255,0.55);
+          opacity: 1;
+        }
+
+        /* moodboard exit animation when messages appear */
+        .moodboard-exit {
+          animation: moodExit 0.38s cubic-bezier(0.4, 0, 1, 1) both;
+        }
+        @keyframes moodExit {
+          to { opacity: 0; transform: translateY(-16px) scale(0.97); }
+        }
 
         /* ═══ TRENDING ═══ */
         .trending-wrap { margin-bottom: 66px; }
@@ -509,123 +601,31 @@ export default function ChatPage() {
         .ai-text { font-size: 15px; line-height: 1.78; color: rgba(255,255,255,0.66); font-weight: 300; margin-bottom: 24px; }
         .movies-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 18px; }
 
-        /* ═══════════════════════════════════════
-           NEW: MODAL + CINEMA MODE
-        ═══════════════════════════════════════ */
-        .modal-overlay {
-          position: fixed; inset: 0; z-index: 1000;
-          background: rgba(0,0,0,0.9);
-          display: flex; align-items: center; justify-content: center;
-          backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-          animation: fadeIn 0.25s ease both; padding: 20px;
-          transition: background 0.6s ease;
-        }
-        /* cinema overlay darkens further */
+        /* ═══ MODAL + CINEMA ═══ */
+        .modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); animation: fadeIn 0.25s ease both; padding: 20px; transition: background 0.6s ease; }
         .modal-overlay.cinema-active { background: rgba(0,0,0,0.97); }
-
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        /* ambient glow orb sits behind the modal */
-        .ambient-glow {
-          position: absolute;
-          width: 900px; height: 900px;
-          border-radius: 50%;
-          pointer-events: none;
-          opacity: 0;
-          transform: scale(0.6);
-          transition: opacity 0.9s ease, transform 0.9s ease;
-          filter: blur(120px);
-          z-index: 0;
-        }
-        .modal-overlay.cinema-active .ambient-glow {
-          opacity: 0.22;
-          transform: scale(1);
-        }
-
-        .modal-content {
-          position: relative; z-index: 1;
-          background: linear-gradient(160deg, #111008, #0a0a0a);
-          border: 1px solid rgba(201,162,39,0.18); border-radius: var(--radius-modal);
-          padding: 36px; max-width: 840px; width: 100%;
-          max-height: 90vh; overflow-y: auto;
-          box-shadow: 0 52px 100px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.04);
-          animation: modalIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
-          transition: max-width 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-                      box-shadow 0.55s ease,
-                      border-color 0.55s ease;
-        }
-        /* cinema: modal expands and gets ambient border glow */
-        .modal-overlay.cinema-active .modal-content {
-          max-width: 1060px;
-          border-color: rgba(var(--ambient-rgb), 0.3);
-          box-shadow:
-            0 0 0 1px rgba(var(--ambient-rgb), 0.15),
-            0 60px 120px rgba(0,0,0,0.95),
-            0 0 80px rgba(var(--ambient-rgb), 0.08);
-        }
-
+        .ambient-glow { position: absolute; width: 900px; height: 900px; border-radius: 50%; pointer-events: none; opacity: 0; transform: scale(0.6); transition: opacity 0.9s ease, transform 0.9s ease; filter: blur(120px); z-index: 0; }
+        .modal-overlay.cinema-active .ambient-glow { opacity: 0.22; transform: scale(1); }
+        .modal-content { position: relative; z-index: 1; background: linear-gradient(160deg, #111008, #0a0a0a); border: 1px solid rgba(201,162,39,0.18); border-radius: var(--radius-modal); padding: 36px; max-width: 840px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 52px 100px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.04); animation: modalIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; transition: max-width 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease, border-color 0.55s ease; }
+        .modal-overlay.cinema-active .modal-content { max-width: 1060px; border-color: rgba(var(--ambient-rgb), 0.3); box-shadow: 0 0 0 1px rgba(var(--ambient-rgb), 0.15), 0 60px 120px rgba(0,0,0,0.95), 0 0 80px rgba(var(--ambient-rgb), 0.08); }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.9) translateY(24px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-
         .modal-close { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, color 0.2s, transform 0.3s ease; }
         .modal-close:hover { background: rgba(201,162,39,0.18); color: var(--gold-lt); transform: rotate(90deg) scale(1.1); }
-
-        /* ── NEW: Cinema toggle button ── */
-        .cinema-btn {
-          position: absolute; top: 16px; right: 60px;
-          height: 34px; padding: 0 14px;
-          border-radius: 8px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.5);
-          font-size: 11px; font-weight: 700; font-family: 'DM Sans', sans-serif;
-          letter-spacing: 0.1em; text-transform: uppercase;
-          cursor: pointer; display: flex; align-items: center; gap: 7px;
-          transition: background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s;
-          white-space: nowrap;
-        }
-        .cinema-btn:hover {
-          background: rgba(201,162,39,0.12);
-          border-color: rgba(201,162,39,0.4);
-          color: var(--gold-lt);
-        }
-        /* active state when cinema is on */
-        .cinema-btn.active {
-          background: rgba(var(--ambient-rgb), 0.15);
-          border-color: rgba(var(--ambient-rgb), 0.5);
-          color: rgb(var(--ambient-rgb));
-          box-shadow: 0 0 16px rgba(var(--ambient-rgb), 0.2);
-        }
-        .cinema-btn-dot {
-          width: 7px; height: 7px; border-radius: 50%;
-          background: currentColor; flex-shrink: 0;
-          transition: transform 0.3s ease;
-        }
+        .cinema-btn { position: absolute; top: 16px; right: 60px; height: 34px; padding: 0 14px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 700; font-family: 'DM Sans', sans-serif; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s; white-space: nowrap; }
+        .cinema-btn:hover { background: rgba(201,162,39,0.12); border-color: rgba(201,162,39,0.4); color: var(--gold-lt); }
+        .cinema-btn.active { background: rgba(var(--ambient-rgb), 0.15); border-color: rgba(var(--ambient-rgb), 0.5); color: rgb(var(--ambient-rgb)); box-shadow: 0 0 16px rgba(var(--ambient-rgb), 0.2); }
+        .cinema-btn-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; transition: transform 0.3s ease; }
         .cinema-btn.active .cinema-btn-dot { transform: scale(1.4); }
-
-        /* trailer grows in cinema mode */
-        .modal-trailer {
-          border-radius: 12px; overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.08); margin-bottom: 22px;
-          transition: border-color 0.55s ease, box-shadow 0.55s ease;
-        }
-        .modal-overlay.cinema-active .modal-trailer {
-          border-color: rgba(var(--ambient-rgb), 0.2);
-          box-shadow: 0 0 40px rgba(var(--ambient-rgb), 0.12);
-        }
-        .modal-trailer iframe {
-          display: block;
-          transition: height 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
+        .modal-trailer { border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 22px; transition: border-color 0.55s ease, box-shadow 0.55s ease; }
+        .modal-overlay.cinema-active .modal-trailer { border-color: rgba(var(--ambient-rgb), 0.2); box-shadow: 0 0 40px rgba(var(--ambient-rgb), 0.12); }
         .modal-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 8px; padding-right: 44px; color: #fff; }
         .modal-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
         .modal-rating-text { color: var(--gold); font-weight: 700; font-size: 14px; }
         .modal-sep  { width: 1px; height: 14px; background: rgba(255,255,255,0.15); }
         .modal-year { color: var(--text-muted); font-size: 13px; }
         .modal-overview { font-size: 15px; line-height: 1.82; color: rgba(255,255,255,0.56); font-weight: 300; margin-bottom: 24px; transition: opacity 0.4s ease; }
-        /* fade overview slightly in cinema for focus */
         .modal-overlay.cinema-active .modal-overview { opacity: 0.7; }
-
         .insight-block { background: linear-gradient(135deg, rgba(201,162,39,0.055), rgba(139,105,20,0.03)); border: 1px solid rgba(201,162,39,0.18); border-left: 3px solid var(--gold); padding: 20px 22px; border-radius: 0 12px 12px 0; }
         .insight-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
         .insight-label { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.13em; text-transform: uppercase; }
@@ -635,12 +635,16 @@ export default function ChatPage() {
 
         @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
 
+        @media (max-width: 900px) {
+          .mood-grid { grid-template-columns: repeat(2, 1fr); }
+        }
         @media (max-width: 768px) {
           .hero-inner, .searchbar-inner, .main { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
           .movies-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
           .typing-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
           .cinema-btn { display: none; }
+          .mood-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
         }
       `}</style>
 
@@ -668,10 +672,8 @@ export default function ChatPage() {
             <input
               type="text" className="search-input"
               placeholder="Ask for movies, genres, moods…"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              autoComplete="off"
+              value={message} onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown} autoComplete="off"
             />
             {showSuggestions && suggestions.length > 0 && (
               <div className="autocomplete-dropdown">
@@ -703,6 +705,42 @@ export default function ChatPage() {
 
       {/* ═══════════ MAIN ═══════════ */}
       <main className="main">
+
+        {/* ══════════════════════════════════════════
+            NEW: MOOD BOARD — only when no messages
+        ══════════════════════════════════════════ */}
+        {showMoodBoard && (
+          <div className="moodboard-wrap">
+            <p className="moodboard-eyebrow">◈ Pick a vibe</p>
+            <p className="moodboard-heading">What are you in the mood for?</p>
+            <div className="mood-grid">
+              {MOODS.map((mood, idx) => {
+                const Icon = mood.icon; // 👈 3. Extract the icon component
+
+                return (
+                  <div
+                    key={idx}
+                    className={`mood-tile${activeMoodIdx === idx ? " pressed" : ""}`}
+                    style={{
+                      background: mood.gradient,
+                      borderColor: mood.border,
+                      boxShadow: `0 8px 32px ${mood.glow}`,
+                    }}
+                    onClick={() => fireMood(mood, idx)}
+                  >
+                    <span className="mood-icon">
+                      {/* 👇 4. Render the professional icon instead of text */}
+                      <Icon size={28} strokeWidth={1.5} color="white" />
+                    </span>
+                    <span className="mood-label">{mood.label}</span>
+                    <span className="mood-desc">{mood.description}</span>
+                    <span className="mood-arrow">→</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── TRENDING ── */}
         <div className="trending-wrap">
@@ -766,61 +804,39 @@ export default function ChatPage() {
         })}
       </main>
 
-      {/* ═══════════════════════════════════════════════════════
-          MOVIE DETAIL MODAL — with Cinema Mode
-      ═══════════════════════════════════════════════════════ */}
+      {/* ═══════════ MODAL ═══════════ */}
       {selectedMovie && (
         <div
           className={`modal-overlay${cinemaMode ? " cinema-active" : ""}`}
           style={{ "--ambient-rgb": ambientColor }}
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          {/* ── NEW: Ambient color glow orb ── */}
-          <div
-            className="ambient-glow"
-            style={{ background: `rgb(${ambientColor})` }}
-          />
-
+          <div className="ambient-glow" style={{ background: `rgb(${ambientColor})` }} />
           <div className="modal-content" style={{ "--ambient-rgb": ambientColor }}>
-
-            {/* ── NEW: Cinema Mode button ── */}
             {selectedMovie.trailer && (
-              <button
-                className={`cinema-btn${cinemaMode ? " active" : ""}`}
-                style={{ "--ambient-rgb": ambientColor }}
-                onClick={cinemaMode ? exitCinema : enterCinema}
-                title={cinemaMode ? "Exit Cinema Mode" : "Enter Cinema Mode"}
-              >
+              <button className={`cinema-btn${cinemaMode ? " active" : ""}`} style={{ "--ambient-rgb": ambientColor }}
+                onClick={cinemaMode ? exitCinema : enterCinema}>
                 <span className="cinema-btn-dot" />
                 {cinemaMode ? "Exit Cinema" : "Cinema Mode"}
               </button>
             )}
-
             <button className="modal-close" onClick={closeModal} aria-label="Close">✕</button>
-
             <h2 className="modal-title">{selectedMovie.title}</h2>
             <div className="modal-meta">
               <span className="modal-rating-text">★ {Number(selectedMovie.rating).toFixed(1)}</span>
               <span className="modal-sep" />
               <span className="modal-year">{selectedMovie.releaseDate}</span>
             </div>
-
             {selectedMovie.trailer && (
               <div className="modal-trailer">
-                <iframe
-                  width="100%"
-                  height={cinemaMode ? 540 : 400}
+                <iframe width="100%" height={cinemaMode ? 540 : 400}
                   src={`https://www.youtube.com/embed/${selectedMovie.trailer}`}
                   title="Trailer" frameBorder="0" allowFullScreen
-                  style={{ transition: "height 0.55s cubic-bezier(0.16, 1, 0.3, 1)" }}
+                  style={{ transition: "height 0.55s cubic-bezier(0.16, 1, 0.3, 1)", display: "block" }}
                 />
               </div>
             )}
-
-            {selectedMovie.overview && (
-              <p className="modal-overview">{selectedMovie.overview}</p>
-            )}
-
+            {selectedMovie.overview && <p className="modal-overview">{selectedMovie.overview}</p>}
             {(insightLoading || insight) && (
               <div className="insight-block">
                 <div className="insight-header">
