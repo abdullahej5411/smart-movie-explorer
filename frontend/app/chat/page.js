@@ -1,3 +1,5 @@
+// frontend\app\chat\page.js:
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -6,954 +8,812 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false); // 👈 ADD THIS
+  const [isHovered, setIsHovered] = useState(false);
   const [insight, setInsight] = useState("");
-  const [insightLoading, setInsightLoading] = useState(false); // 👈 ADD THIS LINE
+  const [insightLoading, setInsightLoading] = useState(false);
   const [trending, setTrending] = useState([]);
   const [animatedInsight, setAnimatedInsight] = useState("");
   const [playingTrailerId, setPlayingTrailerId] = useState(null);
+  const [playingMovie, setPlayingMovie] = useState(null);
+  const [popoutStyle, setPopoutStyle] = useState({});
+  const [selectedMovie, setSelectedMovie] = useState(null);
   const hoverTimerRef = useRef(null);
-  const [popoutDirection, setPopoutDirection] = useState("center"); // 👈 ADD THIS
-
-  // 👈 Start Netflix-style timer on hover
-  // 👈 UPGRADED: Smart Netflix-style edge detection
-  const handleCardMouseEnter = (e, tmdbId) => {
-    // Find exactly where this specific card is on the screen
-    const rect = e.currentTarget.getBoundingClientRect();
-    const screenWidth = window.innerWidth;
-
-    // If it's too close to the left edge, force it to pop right
-    if (rect.left < 100) {
-      setPopoutDirection("left");
-    }
-    // If it's too close to the right edge, force it to pop left
-    else if (screenWidth - rect.right < 100) {
-      setPopoutDirection("right");
-    }
-    // Otherwise, perfectly center it!
-    else {
-      setPopoutDirection("center");
-    }
-
-    hoverTimerRef.current = setTimeout(() => {
-      setPlayingTrailerId(tmdbId);
-    }, 800);
-  };
-
-  // 👈 Cancel timer if mouse leaves early, or stop video if playing
-  const handleCardMouseLeave = () => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-    }
-    setPlayingTrailerId(null);
-  };
   const rowRef = useRef(null);
+  const [hoveredMovie, setHoveredMovie] = useState(null);
 
+  /* ─────────────────────────────────────────────────────────
+     FIXED-POSITION POPOUT: position from card's bounding rect
+     so it never clips at left / right screen edges
+  ───────────────────────────────────────────────────────── */
+  const handleCardMouseEnter = (e, movie) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const PW = 460, PH = 310;
+    let left = rect.left + rect.width / 2 - PW / 2;
+    let top = rect.top + rect.height / 2 - PH / 2;
+    // clamp to viewport with 12px gutter
+    left = Math.max(12, Math.min(left, window.innerWidth - PW - 12));
+    top = Math.max(12, Math.min(top, window.innerHeight - PH - 12));
+    setPopoutStyle({ top, left, width: PW, height: PH });
 
-  // 👈 Translates **bold** markdown into actual bold text!
-  const renderFormattedText = (text) => {
-    if (!text) return "";
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={index} style={{ color: "#fff" }}>{part.replace(/\*\*/g, "")}</strong>;
-      }
-      return part;
+    clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setPlayingTrailerId(movie.tmdbId);
+      setPlayingMovie(movie);
+    }, 1000);
+  };
+
+  const handleCardMouseLeave = () => {
+    clearTimeout(hoverTimerRef.current);
+    setPlayingTrailerId(null);
+    setPlayingMovie(null);
+    setHoveredMovie(null); // 👈 remove preview
+  };
+
+  /* ─── ROW SCROLL ─── */
+  const scrollRow = (dir) => {
+    if (!rowRef.current) return;
+    const { scrollLeft, clientWidth } = rowRef.current;
+    rowRef.current.scrollTo({
+      left: dir === "left"
+        ? scrollLeft - clientWidth * 0.75
+        : scrollLeft + clientWidth * 0.75,
+      behavior: "smooth",
     });
   };
 
-
-  const scrollRow = (direction) => {
-    if (rowRef.current) {
-      const { scrollLeft, clientWidth } = rowRef.current;
-      const scrollTo = direction === "left" ? scrollLeft - clientWidth : scrollLeft + clientWidth;
-      rowRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
-    }
-  };
-
-  // 👈 ADD THIS ENTIRE AUTO-SCROLL EFFECT
+  /* ─── AUTO-SCROLL ROW ─── */
   useEffect(() => {
-    // Stop the timer if the user is hovering or if there are no movies
     if (isHovered || trending.length === 0) return;
-
-    const interval = setInterval(() => {
-      if (rowRef.current) {
-        const { scrollLeft, clientWidth, scrollWidth } = rowRef.current;
-
-        // If we hit the very end of the row, scroll back to the beginning
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          rowRef.current.scrollTo({ left: 0, behavior: "smooth" });
-        } else {
-          // Otherwise, just click the "right" arrow automatically
-          scrollRow("right");
-        }
-      }
-    }, 3100); // 👈 4000 = slides every 4 seconds. Change this number to make it faster/slower!
-
-    // Cleanup the timer when unmounting or hovering
-    return () => clearInterval(interval);
+    const id = setInterval(() => {
+      if (!rowRef.current) return;
+      const { scrollLeft, clientWidth, scrollWidth } = rowRef.current;
+      if (scrollLeft + clientWidth >= scrollWidth - 10)
+        rowRef.current.scrollTo({ left: 0, behavior: "smooth" });
+      else scrollRow("right");
+    }, 3400);
+    return () => clearInterval(id);
   }, [isHovered, trending]);
 
-
-  // 👈 The ULTIMATE sticky-header scroll fix
-  // 👈 The PERFECT dual-trigger scroll fix
+  /* ─── SCROLL TO LATEST MSG ─── */
   useEffect(() => {
-    const scrollToId = (id) => {
-      const element = document.getElementById(id);
-      if (element) {
-        // Find the element and subtract 120px so the sticky header doesn't block it
-        const y = element.getBoundingClientRect().top + window.scrollY - 120;
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
+    const go = (id) => {
+      const el = document.getElementById(id);
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: "smooth" });
     };
-
-    if (loading) {
-      scrollToId("typing-dots"); // 👈 This now uses the 120px offset!
-    }
-
-    if (!loading && messages.length > 0) {
-      const lastIndex = messages.length - 1;
-      setTimeout(() => {
-        scrollToId(`msg-${lastIndex}`);
-      }, 150); // Slightly longer timeout for slower browsers
-    }
+    if (loading) go("typing-dots");
+    if (!loading && messages.length > 0) setTimeout(() => go(`msg-${messages.length - 1}`), 160);
   }, [loading, messages.length]);
 
+  /* ─── FETCH TRENDING ─── */
   useEffect(() => {
-    const fetchTrending = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/movies/trending")
-        const data = await res.json();
-        setTrending(data.movies || []);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchTrending();
+    fetch("http://localhost:5000/api/movies/trending")
+      .then(r => r.json())
+      .then(d => setTrending(d.movies || []))
+      .catch(console.error);
   }, []);
 
+  /* ─── TYPEWRITER ─── */
+  const typeText = async (text, setter) => {
+    setter("");
+    let cur = "";
+    for (const w of text.split(" ")) {
+      cur += w + " ";
+      setter(cur);
+      await new Promise(r => setTimeout(r, 28));
+    }
+  };
+
+  /* ─── FETCH INSIGHT ─── */
   const fetchInsight = async (title) => {
-
-    setInsight("");
-    setAnimatedInsight("");
-    setInsightLoading(true);
-
-    await new Promise(resolve => setTimeout(resolve, 60));
-
+    setInsight(""); setAnimatedInsight(""); setInsightLoading(true);
     try {
-
       const res = await fetch("http://localhost:5000/api/chat/movie-insight", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ title })
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
       });
-
       const data = await res.json();
-
-      const insightText =
-        data.insight ||
-        data.message ||
-        "No AI insight available for this movie.";
-
-      await typeInsight(insightText);
-      setInsight(insightText);
-
-    } catch (err) {
-
-      console.error(err);
+      const txt = data.insight || data.message || "No AI insight available.";
+      await typeText(txt, setAnimatedInsight);
+      setInsight(txt);
+    } catch {
       setInsight("Failed to generate insight.");
-
     } finally {
-
       setInsightLoading(false);
-
     }
   };
 
-
-
-  const typeInsight = async (text = "") => {
-    setAnimatedInsight("");
-
-    const words = text.split(" ");
-    let current = "";
-
-    for (let i = 0; i < words.length; i++) {
-      current += words[i] + " ";
-      setAnimatedInsight(current);
-
-      await new Promise((r) => setTimeout(r, 30));
-    }
-  };
-
+  /* ─── SEND MESSAGE ─── */
   const sendMessage = async () => {
-    if (!message) return;
-
-    const currentMessage = message;
-
+    if (!message.trim() || loading) return;
+    const cur = message.trim();
     setMessage("");
-
-    const userMessage = {
-      role: "user",
-      text: currentMessage
-    };
-
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-      { role: "typing" }
-    ]);
-
+    setMessages(prev => [...prev, { role: "user", text: cur }, { role: "typing" }]);
     setLoading(true);
-
-    // 👇 allow React to render the loading dots first
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
+    await new Promise(r => setTimeout(r, 50));
     try {
-
       const res = await fetch("http://localhost:5000/api/chat/movie-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-        body: JSON.stringify({ message: currentMessage }),
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ message: cur }),
       });
-
       const data = await res.json();
-
-      const aiReply =
-        data.reply ||
-        data.query?.reply ||
-        data.message ||
-        "Here are some recommendations for you!";
-
-      setMessages((prev) => {
-        const withoutTyping = prev.filter(m => m.role !== "typing");
-
-        return [
-          ...withoutTyping,
-          { role: "ai", text: "", movies: data.results || [] }
-        ];
-      });
-
-      const words = aiReply.split(" ");
-
-      let current = "";
-
-      for (let i = 0; i < words.length; i++) {
-        current += words[i] + " ";
-
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1].text = current;
-          return updated;
-        });
-
-        await new Promise((r) => setTimeout(r, 30));
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", text: "Something went wrong. Please try again.", movies: [] }
+      const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
+      setMessages(prev => [
+        ...prev.filter(m => m.role !== "typing"),
+        { role: "ai", text: "", movies: data.results || [] },
       ]);
-
+      let built = "";
+      for (const w of reply.split(" ")) {
+        built += w + " ";
+        setMessages(prev => {
+          const u = [...prev];
+          u[u.length - 1] = { ...u[u.length - 1], text: built };
+          return u;
+        });
+        await new Promise(r => setTimeout(r, 28));
+      }
+    } catch {
+      setMessages(prev => [
+        ...prev.filter(m => m.role !== "typing"),
+        { role: "ai", text: "Something went wrong. Please try again.", movies: [] },
+      ]);
     } finally {
-
       setLoading(false);
-
     }
   };
 
-  const [selectedMovie, setSelectedMovie] = useState(null);
+  /* ─── BOLD RENDERER ─── */
+  const renderBold = (text) =>
+    text?.split(/(\*\*.*?\*\*)/g).map((p, i) =>
+      p.startsWith("**") && p.endsWith("**")
+        ? <strong key={i} style={{ color: "#f5c842", fontWeight: 700 }}>{p.slice(2, -2)}</strong>
+        : p
+    ) ?? "";
 
-  return (
-    <div
-      style={{
-        padding: "40px",
-        maxWidth: "1200px",
-        margin: "0 auto",
-        fontFamily: "Arial",
-        background: "#0f0f0f",
-        minHeight: "100vh",
-        color: "white"
-      }}
-    >
-      <style jsx global>{`
-      
-
-      .movieRow {
-        display: flex;
-        gap: 20px;
-        overflow-x: auto;
-        scroll-behavior: smooth;
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE */
-        
-        /* 👇 THIS STOPS THE SCROLLBAR CLIPPING FIX 👇 */
-        padding: 40px 150px;
-        margin: -40px -150px;
-      }
-
-      .movieRow::-webkit-scrollbar {
-        height: 6px;
-      }
-
-      .movieRow::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      .movieRow::-webkit-scrollbar-thumb {
-        background: linear-gradient(90deg,#e50914,#b20710);
-        border-radius: 20px;
-      }
-
-      .movieRow::-webkit-scrollbar-thumb:hover {
-        background: #ff1e1e;
-      }
-
-      /* MODAL SCROLLBAR */
-
-      ::-webkit-scrollbar {
-        width: 10px;
-      }
-
-      ::-webkit-scrollbar-track {
-        background: #111;
-        border-radius: 10px;
-      }
-
-      ::-webkit-scrollbar-thumb {
-        background: linear-gradient(#e50914,#b20710);
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(229,9,20,.6);
-      }
-
-      ::-webkit-scrollbar-thumb:hover {
-        background: #ff1e1e;
-      }
-
-      .typing {
-        display: flex;
-        flex-direction: row; /* 👈 Forces them into a horizontal line */
-        gap: 6px;
-        align-items: center;
-        justify-content: center;
-        height: 14px;
-      }
-
-      .typing span {
-        width: 8px;
-        height: 8px;
-        background: #aaa;
-        border-radius: 50%;
-        display: inline-block; /* 👈 Guarantees they sit side-by-side! */
-        animation: bounce 1.4s infinite ease-in-out both;
-      }
-
-      .typing span:nth-child(1) {
-        animation-delay: -0.32s;
-      }
-
-      .typing span:nth-child(2) {
-        animation-delay: -0.16s;
-      }
-
-      .typing span:nth-child(3) {
-        animation-delay: 0s;
-      }
-
-      @keyframes bounce {
-        0%, 80%, 100% { 
-          transform: translateY(0); 
-          opacity: 0.4; 
-        }
-        40% { 
-          transform: translateY(-5px); 
-          opacity: 1; 
-        }
-      }
-
-      .messageEnter {
-        animation: fadeUp .5s ease;
-      }
-
-      @keyframes fadeUp {
-        from{
-          opacity:0;
-          transform:translateY(20px);
-        }
-        to{
-          opacity:1;
-          transform:translateY(0);
-        }
-      }
-
-      /* 👇 THE BASE HOVER ANIMATION 👇 */
-      .movie-card {
-        transition: all 0.3s ease;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-      }
-      
-      .movie-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.9);
-      }
-
-      /* 👇 THE SMART WIDESCREEN POPOUT 👇 */
-      .popout-card {
-        position: absolute;
-        top: 50%;
-        width: 480px;      /* 👈 Increased from 340px */
-        height: 320px;
-        background: #141414;
-        border-radius: 12px;
-        overflow: hidden;
-        z-index: 100;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.9);
-        pointer-events: none; 
-        display: flex;
-        flex-direction: column;
-      }
-
-      /* The 3 Smart Positions */
-      .popout-center {
-        left: 50%;
-        animation: popoutCenterAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-      }
-      .popout-left {
-        left: 0;
-        animation: popoutLeftAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-      }
-      .popout-right {
-        right: 0;
-        animation: popoutRightAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-      }
-
-      @keyframes popoutCenterAnim {
-        0% { transform: translate(-50%, calc(-50% - 20px)) scale(0.8); opacity: 0; }
-        100% { transform: translate(-50%, calc(-50% - 20px)) scale(1); opacity: 1; }
-      }
-      @keyframes popoutLeftAnim {
-        0% { transform: translate(0, calc(-50% - 20px)) scale(0.8); opacity: 0; }
-        100% { transform: translate(0, calc(-50% - 20px)) scale(1); opacity: 1; }
-      }
-      @keyframes popoutRightAnim {
-        0% { transform: translate(0, calc(-50% - 20px)) scale(0.8); opacity: 0; }
-        100% { transform: translate(0, calc(-50% - 20px)) scale(1); opacity: 1; }
-      }
-
-      `}</style>
-
-
-
-      <h1
-        style={{
-          fontSize: "36px",
-          fontWeight: "bold",
-          marginBottom: "30px",
-          color: "#e50914"
-        }}
-      >
-        🎬 Smart Movie Explorer
-      </h1>
-
+  /* ─── REUSABLE MOVIE CARD ─── */
+  const MovieCard = ({ movie, variant }) => {
+    const isRow = variant === "row";
+    return (
       <div
-        style={{
-          position: "sticky",
-          top: 0,
-          backdropFilter: "blur(12px)",
-          padding: "20px 0",
-          zIndex: 50
-        }}
+        onClick={() => { setSelectedMovie(movie); setAnimatedInsight(""); fetchInsight(movie.title); }}
+        className={isRow ? "trending-card" : "grid-card"}
+        style={isRow ? { minWidth: 158, width: 158, flexShrink: 0, position: "relative", cursor: "pointer" } : { position: "relative", cursor: "pointer" }}
       >
-        <input
-          type="text"
-          placeholder="Ask for movies..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading) {
-              sendMessage();
-            }
-          }}
-          style={{
-            padding: "12px",
-            width: "320px",
-            marginRight: "10px",
-            borderRadius: "6px",
-            border: "none",
-            outline: "none",
-            background: "#1a1a1a",
-            color: "white",
-            border: "1px solid rgba(255,255,255,.1)"
-          }}
-        />
+        {isRow ? (
+          <>
+            <div className="card-poster-wrap row-poster">
+              <img src={movie.poster} alt={movie.title} className="card-poster" />
+              <div className="card-shine" />
 
-        <button
-          onClick={sendMessage}
-          style={{
-            padding: "12px 20px",
-            cursor: "pointer",
-            borderRadius: "6px",
-            border: "none",
-            color: "white",
-            fontWeight: "bold",
-            background: "linear-gradient(135deg,#e50914,#b20710)"
-          }}
-        >
-          Search
-        </button>
-      </div>
-
-      {trending.length > 0 && (
-        <div style={{ marginTop: "40px", marginBottom: "40px" }}>
-
-          {/* 1. Title is now safely OUTSIDE the relative wrapper */}
-          <h2 style={{ marginBottom: "20px" }}>🔥 Trending Movies</h2>
-
-          {/* 2. Wrapper ONLY for the posters and arrows */}
-          <div
-            style={{ position: "relative" }}
-            onMouseEnter={() => setIsHovered(true)}  /* 👈 ADD THIS: Pauses timer */
-            onMouseLeave={() => setIsHovered(false)} /* 👈 ADD THIS: Resumes timer */
-          >
-
-            {/* LEFT ARROW */}
-            <button
-              onClick={() => scrollRow("left")}
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                height: "100%", // Locks exactly to poster height
-                width: "70px",
-                zIndex: 10,
-                background: "linear-gradient(to right, #0f0f0f 10%, transparent 100%)", // Perfect fade
-                color: "white",
-                border: "none",
-                fontSize: "45px",
-                cursor: "pointer",
-                borderTopLeftRadius: "0px", // Matches your poster's rounded corners!
-                borderBottomLeftRadius: "0px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                paddingLeft: "5px",
-                transition: "color 0.2s ease"
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = "#e50914"}
-              onMouseLeave={(e) => e.currentTarget.style.color = "white"}
-            >
-              ❮
-            </button>
-
-            {/* MOVIE ROW */}
-            <style>{`
-              .movieRow::-webkit-scrollbar {
-                display: none !important;
-              }
-            `}</style>
-
-            <div
-              className="movieRow"
-              ref={rowRef}
-              style={{
-                display: "flex",
-                gap: "20px",
-                overflowX: "auto",
-                scrollBehavior: "smooth",
-                scrollbarWidth: "none", /* Hides for Firefox */
-                msOverflowStyle: "none" /* Hides for Edge */
-              }}
-            >
-              {trending.map((movie, i) => (
-                <div
-                  key={i}
-                  onMouseEnter={(e) => handleCardMouseEnter(e, movie.tmdbId)} /* 👈 Passed the event 'e' here */
-                  onMouseLeave={handleCardMouseLeave}
-                  onClick={() => {
-                    setSelectedMovie(movie);
-                    setAnimatedInsight("");
-                    fetchInsight(movie.title);
-                  }}
-                  style={{
-                    position: "relative",
-                    zIndex: playingTrailerId === movie.tmdbId ? 50 : 1,
-                    minWidth: "200px",
-                    width: "200px",
-                    cursor: "pointer"
-                  }}
-                >
-                  {/* 1. THE BASE POSTER */}
-                  <div
-                    className="movie-card"
-                    style={{
-                      width: "200px",
-                      height: "300px",
-                      borderRadius: "10px",
-                      overflow: "hidden",
-                      background: "#1a1a1a",
-                      opacity: playingTrailerId === movie.tmdbId && movie.trailer ? 0 : 1,
-                      transition: "opacity 0.3s ease"
-                    }}
-                  >
-                    <img src={movie.poster} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  </div>
-
-                  <p style={{
-                    marginTop: "10px",
-                    padding: "0 5px",
-                    opacity: playingTrailerId === movie.tmdbId && movie.trailer ? 0 : 1,
-                    transition: "opacity 0.3s ease"
-                  }}>
-                    {movie.title}
-                  </p>
-
-                  {/* 2. THE WIDESCREEN POPOUT TRAILER */}
-                  {playingTrailerId === movie.tmdbId && movie.trailer && (
-                    <div className={`popout-card popout-${popoutDirection}`}> {/* 👈 Added the dynamic edge direction here */}
-                      <iframe
-                        src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${movie.trailer}`}
-                        style={{ width: "100%", height: "270px", border: "none", pointerEvents: "none" }}
-                        allow="autoplay"
-                      />
-                      <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", flexGrow: 1 }}>
-                        <h3 style={{ margin: 0, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "75%" }}>
-                          {movie.title}
-                        </h3>
-                        <span style={{ background: "#e50914", padding: "3px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
-                          ⭐ {Number(movie.rating).toFixed(1)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+              {/* ✅ ADD THIS */}
+              <div className="card-hover-overlay">
+                <span className="card-play-btn">▶</span>
+              </div>
             </div>
 
-            {/* RIGHT ARROW */}
-            <button
-              onClick={() => scrollRow("right")}
-              style={{
-                position: "absolute",
-                right: 0,
-                top: 0,
-                height: "100%", // Locks exactly to poster height
-                width: "70px",
-                zIndex: 10,
-                background: "linear-gradient(to left, #0f0f0f 10%, transparent 100%)", // Perfect fade
-                color: "white",
-                border: "none",
-                fontSize: "45px",
-                cursor: "pointer",
-                borderTopRightRadius: "0px", // Matches your poster's rounded corners!
-                borderBottomRightRadius: "0px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                paddingRight: "5px",
-                transition: "color 0.2s ease"
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = "#e50914"}
-              onMouseLeave={(e) => e.currentTarget.style.color = "white"}
-            >
-              ❯
-            </button>
+            <div className="card-meta">
+              <p className="card-title">{movie.title}</p>
+              <p className="card-rating-text">★ {Number(movie.rating).toFixed(1)}</p>
+            </div>
+          </>
+        ) : (
+          <div className="grid-card-inner">
+            <div className="card-poster-wrap grid-poster">
+              <img src={movie.poster} alt={movie.title} className="card-poster" />
+              <div className="card-shine" />
+              <div className="card-hover-overlay">
+                <span className="card-play-btn">▶</span>
+              </div>
+            </div>
+            <div className="grid-card-body">
+              <h3 className="grid-card-title">{movie.title}</h3>
+              <div className="grid-card-foot">
+                <span className="card-rating-text">★ {Number(movie.rating).toFixed(1)}</span>
+                <span className="grid-card-year">{movie.releaseDate?.slice(0, 4)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
+  /* ══════════════════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════════════════ */
+  return (
+    <div className="app-root">
+
+      {/* ─── ALL STYLES ─── */}
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+          --gold:         #c9a227;
+          --gold-lt:      #f5c842;
+          --gold-dk:      #8b6914;
+          --bg:           #080808;
+          --bg2:          #0d0d0d;
+          --bg3:          #111111;
+          --text:         rgba(255,255,255,0.85);
+          --text-muted:   rgba(255,255,255,0.38);
+          --border:       rgba(255,255,255,0.07);
+          --gold-border:  rgba(201,162,39,0.25);
+          --radius-card:  12px;
+          --radius-modal: 22px;
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+          background: var(--bg); color: var(--text);
+          font-family: 'DM Sans', sans-serif;
+          overflow-x: hidden;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0e0e0e; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(var(--gold), var(--gold-dk)); border-radius: 99px; }
+
+        /* GRAIN */
+        .grain {
+          position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+          opacity: 0.03;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-size: 120px;
+        }
+
+        /* ROOT */
+        .app-root { min-height: 100vh; background: var(--bg); color: white; overflow-x: hidden; }
+
+        /* ═══ HERO ═══ */
+        .hero {
+          position: relative;
+          background: linear-gradient(180deg, #0e0900 0%, var(--bg) 100%);
+          padding: 60px 0 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .hero-line {
+          position: absolute; top: 0; left: 0; right: 0; height: 2px;
+          background: linear-gradient(90deg, transparent 0%, var(--gold) 28%, var(--gold-lt) 50%, var(--gold) 72%, transparent 100%);
+        }
+        .hero-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+        .hero-eyebrow {
+          font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
+          text-transform: uppercase; color: var(--gold); margin-bottom: 14px;
+          opacity: 0.85; animation: fadeUp 0.65s ease both;
+        }
+        .hero-title {
+          font-family: 'Playfair Display', serif;
+          font-size: clamp(42px, 5.5vw, 70px);
+          font-weight: 900; line-height: 1.04;
+          letter-spacing: -0.025em; margin-bottom: 12px;
+          background: linear-gradient(135deg, #fff 0%, #e8d58a 55%, var(--gold) 100%);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+          animation: fadeUp 0.65s 0.1s ease both;
+        }
+        .hero-sub {
+          font-size: 15px; color: var(--text-muted); font-weight: 300;
+          margin-bottom: 48px; letter-spacing: 0.01em;
+          animation: fadeUp 0.65s 0.2s ease both;
+        }
+
+        /* ═══ STICKY SEARCH ═══ */
+        .searchbar {
+          position: sticky; top: 0; z-index: 200;
+          background: rgba(8,8,8,0.92);
+          backdrop-filter: blur(28px) saturate(160%);
+          -webkit-backdrop-filter: blur(28px) saturate(160%);
+          border-bottom: 1px solid var(--border);
+          padding: 13px 0;
+          transition: box-shadow 0.3s ease;
+        }
+        .searchbar-inner {
+          max-width: 1200px; margin: 0 auto; padding: 0 48px;
+          display: flex; align-items: center; gap: 12px;
+        }
+        .search-wrap { position: relative; flex-grow: 1; max-width: 540px; }
+        .search-icon {
+          position: absolute;
+          left: 16px;
+          top: 50%;
+          transform: translateY(-50%);
+          opacity: 0.7;
+          display: flex;
+          align-items: center;
+        }
+        .search-input {
+          width: 100%; padding: 13px 16px 13px 46px;
+          border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.04); color: white;
+          font-size: 15px; font-family: 'DM Sans', sans-serif;
+          transition: border-color 0.25s, box-shadow 0.25s;
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus {
+          outline: none;
+          border-color: rgba(201,162,39,0.55);
+          box-shadow: 0 0 0 3px rgba(201,162,39,0.07);
+        }
+        .send-btn {
+          padding: 13px 30px; border-radius: 10px;
+          border: 1px solid rgba(201,162,39,0.45);
+          background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%);
+          color: #0a0800; font-weight: 700; font-size: 13px;
+          font-family: 'DM Sans', sans-serif; letter-spacing: 0.07em;
+          text-transform: uppercase; cursor: pointer;
+          transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s ease;
+          white-space: nowrap;
+        }
+        .send-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(201,162,39,0.38); }
+        .send-btn:active:not(:disabled) { transform: translateY(0); }
+        .send-btn:disabled { opacity: 0.52; cursor: not-allowed; }
+
+        /* ═══ MAIN ═══ */
+        .main { max-width: 1200px; margin: 0 auto; padding: 52px 48px 100px; }
+
+        /* SECTION LABEL */
+        .section-label { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+        .section-bar {
+          width: 4px; height: 24px; flex-shrink: 0;
+          background: linear-gradient(180deg, var(--gold-lt), var(--gold-dk)); border-radius: 2px;
+        }
+        .section-title {
+          font-family: 'Playfair Display', serif;
+          font-size: 23px; font-weight: 700; color: #fff; letter-spacing: -0.01em;
+        }
+
+        /* ═══ TRENDING ═══ */
+        .trending-wrap { margin-bottom: 66px; }
+        .trending-row-container { position: relative; }
+
+        /* Fade gradient edges */
+        .row-fade-left,
+        .row-fade-right {
+          position: absolute; top: 0; bottom: 0; width: 80px;
+          z-index: 10; pointer-events: none;
+        }
+        .row-fade-left  { left: 0;  background: linear-gradient(to right, var(--bg) 15%, transparent); }
+        .row-fade-right { right: 0; background: linear-gradient(to left,  var(--bg) 15%, transparent); }
+
+        /* Arrow buttons */
+        .row-arrow {
+          position: absolute; top: 0; bottom: 20px; width: 56px; z-index: 11;
+          border: none; background: transparent; color: rgba(255,255,255,0.4);
+          font-size: 32px; cursor: pointer;
+          display: flex; align-items: center;
+          transition: color 0.2s ease;
+          padding: 0;
+        }
+        .row-arrow:hover { color: var(--gold-lt); }
+        .row-arrow-left  { left: 0;  justify-content: flex-start; padding-left: 4px; }
+        .row-arrow-right { right: 0; justify-content: flex-end;   padding-right: 4px; }
+
+        /* Scrollable row */
+        .movie-row {
+          display: flex; gap: 16px;
+          overflow-x: auto; scroll-behavior: smooth;
+          scrollbar-width: none; -ms-overflow-style: none;
+          padding: 14px 4px 22px;
+        }
+        .movie-row::-webkit-scrollbar { display: none; }
+
+        /* ═══ CARD SHARED ═══ */
+        .card-poster-wrap { position: relative; overflow: hidden; background: #1a1a1a; }
+        .row-poster  { width: 158px; height: 238px; border-radius: var(--radius-card); border: 1px solid rgba(255,255,255,0.08); }
+        .grid-poster { height: 260px; }
+        .card-poster { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .card-shine  { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 55%); pointer-events: none; }
+        .card-meta   { margin-top: 10px; padding: 0 2px; }
+        .card-title  { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-rating-text { font-size: 12px; color: var(--gold); margin-top: 4px; font-weight: 600; }
+
+        /* ═══ TRENDING CARD ═══ */
+        .trending-card { transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
+        .trending-card:hover { transform: translateY(-8px) scale(1.03); }
+        .trending-card:hover .card-poster { transform: scale(1.07); }
+        .trending-card:hover .row-poster  { box-shadow: 0 18px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--gold-border); }
+
+        /* ═══ GRID CARD ═══ */
+        .grid-card { transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
+        .grid-card:hover { transform: translateY(-7px); }
+        .grid-card:hover .card-poster { transform: scale(1.06); }
+
+        .grid-card-inner {
+          border-radius: var(--radius-card); overflow: hidden;
+          background: var(--bg3); border: 1px solid var(--border);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+          transition: border-color 0.35s ease, box-shadow 0.35s ease;
+        }
+        .grid-card:hover .grid-card-inner {
+          border-color: var(--gold-border);
+          box-shadow: 0 22px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,162,39,0.18);
+        }
+        .card-hover-overlay {
+          position: absolute; inset: 0;
+          background: rgba(0,0,0,0); display: flex; align-items: center; justify-content: center;
+          transition: background 0.3s ease;
+        }
+        
+        .grid-card:hover .card-hover-overlay,
+        .trending-card:hover .card-hover-overlay {
+          background: rgba(0,0,0,0.38);
+        }
+          
+        .card-play-btn {
+          width: 46px; height: 46px; border-radius: 50%;
+          background: rgba(201,162,39,0.92);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 16px; color: #000; padding-left: 3px;
+          transform: scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .grid-card:hover .card-play-btn, 
+        .trending-card:hover .card-play-btn {
+         transform: scale(1); 
+        }
+        .grid-card-body  { padding: 14px 14px 16px; }
+        .grid-card-title { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.35; margin-bottom: 8px; letter-spacing: 0.01em; }
+        .grid-card-foot  { display: flex; justify-content: space-between; align-items: center; }
+        .grid-card-year  { font-size: 11px; color: var(--text-muted); }
+
+        /* ═══ GLOBAL POPOUT TRAILER ═══ */
+        .trailer-popout {
+          position: fixed; z-index: 9500; pointer-events: none;
+          border-radius: 14px; overflow: hidden;
+          background: var(--bg2);
+          border: 1px solid rgba(201,162,39,0.18);
+          box-shadow: 0 36px 76px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.04);
+          display: flex; flex-direction: column;
+          animation: popoutIn 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+        }
+        @keyframes popoutIn {
+          from { opacity: 0; transform: scale(0.84); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        .trailer-meta {
+          padding: 10px 14px; display: flex; justify-content: space-between;
+          align-items: center; flex-shrink: 0;
+        }
+        .trailer-title {
+          font-size: 13px; font-weight: 600; color: #fff;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 72%;
+        }
+        .rating-pill {
+          background: linear-gradient(135deg, var(--gold), var(--gold-dk));
+          padding: 3px 9px; border-radius: 6px;
+          font-size: 12px; font-weight: 700; color: #fff;
+          letter-spacing: 0.03em; flex-shrink: 0;
+        }
+
+        /* ═══ DIVIDER ═══ */
+        .section-divider {
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent);
+          margin-bottom: 52px;
+        }
+
+        /* ═══ MESSAGES ═══ */
+        .msg-enter { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        .user-row { text-align: right; margin-bottom: 20px; scroll-margin-top: 130px; }
+        .user-bubble {
+          display: inline-block;
+          background: linear-gradient(135deg, #1a1200, #271d00);
+          border: 1px solid rgba(201,162,39,0.28); color: var(--gold-lt);
+          padding: 11px 18px; border-radius: 18px 18px 4px 18px;
+          font-size: 15px; font-weight: 500; letter-spacing: 0.01em;
+          box-shadow: 0 4px 18px rgba(201,162,39,0.1);
+        }
+
+        .typing-row { margin-bottom: 20px; scroll-margin-top: 130px; }
+        .typing-bubble {
+          display: inline-block;
+          background: rgba(16,12,0,0.8); backdrop-filter: blur(12px);
+          border: 1px solid rgba(201,162,39,0.1);
+          padding: 16px 22px; border-radius: 14px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .typing-dots { display: flex; gap: 6px; align-items: center; height: 14px; }
+        .typing-dots span {
+          width: 7px; height: 7px; background: var(--gold); border-radius: 50%;
+          animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0s; }
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40%           { transform: translateY(-5px); opacity: 1; }
+        }
+
+        .ai-box {
+          background: linear-gradient(160deg, rgba(17,17,17,0.98), rgba(10,10,10,0.99));
+          border: 1px solid var(--border); border-radius: 18px;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+          padding: 28px 30px; margin-bottom: 40px;
+          scroll-margin-top: 130px;
+        }
+        .ai-label { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; }
+        .ai-dot {
+          width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+          background: linear-gradient(135deg, var(--gold), var(--gold-dk));
+          display: flex; align-items: center; justify-content: center;
+          font-size: 12px; color: #000;
+        }
+        .ai-label-text {
+          font-size: 11px; font-weight: 700; color: var(--gold);
+          letter-spacing: 0.12em; text-transform: uppercase;
+        }
+        .ai-text {
+          font-size: 15px; line-height: 1.78; color: rgba(255,255,255,0.66);
+          font-weight: 300; margin-bottom: 24px;
+        }
+        .movies-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+          gap: 18px;
+        }
+
+        /* ═══ MODAL ═══ */
+        .modal-overlay {
+          position: fixed; inset: 0; z-index: 1000;
+          background: rgba(0,0,0,0.9);
+          display: flex; align-items: center; justify-content: center;
+          backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+          animation: fadeIn 0.25s ease both;
+          padding: 20px;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-content {
+          position: relative;
+          background: linear-gradient(160deg, #111008, #0a0a0a);
+          border: 1px solid rgba(201,162,39,0.18); border-radius: var(--radius-modal);
+          padding: 36px; max-width: 840px; width: 100%;
+          max-height: 90vh; overflow-y: auto;
+          box-shadow: 0 52px 100px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.04);
+          animation: modalIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.9) translateY(24px); }
+          to   { opacity: 1; transform: scale(1)   translateY(0); }
+        }
+
+        .modal-close {
+          position: absolute; top: 16px; right: 16px;
+          width: 34px; height: 34px; border-radius: 50%;
+          background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.55); font-size: 15px; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.2s, color 0.2s, transform 0.3s ease;
+        }
+        .modal-close:hover { background: rgba(201,162,39,0.18); color: var(--gold-lt); transform: rotate(90deg) scale(1.1); }
+
+        .modal-title {
+          font-family: 'Playfair Display', serif;
+          font-size: 30px; font-weight: 700; letter-spacing: -0.015em;
+          margin-bottom: 8px; padding-right: 44px; color: #fff;
+        }
+        .modal-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+        .modal-rating-text { color: var(--gold); font-weight: 700; font-size: 14px; }
+        .modal-sep  { width: 1px; height: 14px; background: rgba(255,255,255,0.15); }
+        .modal-year { color: var(--text-muted); font-size: 13px; }
+
+        .modal-trailer {
+          border-radius: 12px; overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.08); margin-bottom: 22px;
+        }
+        .modal-overview {
+          font-size: 15px; line-height: 1.82; color: rgba(255,255,255,0.56);
+          font-weight: 300; margin-bottom: 24px;
+        }
+
+        .insight-block {
+          background: linear-gradient(135deg, rgba(201,162,39,0.055), rgba(139,105,20,0.03));
+          border: 1px solid rgba(201,162,39,0.18);
+          border-left: 3px solid var(--gold);
+          padding: 20px 22px; border-radius: 0 12px 12px 0;
+        }
+        .insight-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .insight-label {
+          font-size: 11px; font-weight: 700; color: var(--gold);
+          letter-spacing: 0.13em; text-transform: uppercase;
+        }
+        .insight-loading { display: flex; align-items: center; gap: 12px; height: 24px; }
+        .insight-loading-text { color: var(--text-muted); font-style: italic; font-size: 13px; }
+        .insight-text {
+          font-size: 14px; line-height: 1.78; color: rgba(255,255,255,0.62); font-weight: 300;
+        }
+
+        /* KEYFRAMES */
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(22px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+          .hero-inner, .searchbar-inner, .main { padding-left: 20px; padding-right: 20px; }
+          .modal-content { padding: 24px; }
+          .movies-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
+        }
+      `}</style>
+
+      {/* GRAIN */}
+      <div className="grain" />
+
+      {/* ═══════════ HERO ═══════════ */}
+      <header className="hero">
+        <div className="hero-line" />
+        <div className="hero-inner">
+          <p className="hero-eyebrow">◈ AI-Powered Discovery</p>
+          <h1 className="hero-title">Smart Movie<br />Explorer</h1>
+          <p className="hero-sub">Discover, explore, and uncover cinematic gems with AI</p>
+        </div>
+      </header>
+
+      {/* ═══════════ STICKY SEARCH ═══════════ */}
+      <div className="searchbar">
+        <div className="searchbar-inner">
+          <div className="search-wrap">
+            <span className="search-icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Ask for movies, genres, moods…"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !loading) sendMessage(); }}
+            />
+          </div>
+          <button className="send-btn" onClick={sendMessage} disabled={loading}>
+            {loading ? "…" : "Search"}
+          </button>
+        </div>
+      </div>
+
+      {/* ═══════════ MAIN ═══════════ */}
+      <main className="main">
+
+        {/* ── TRENDING ROW ── */}
+        {trending.length > 0 && (
+          <div className="trending-wrap">
+            <div className="section-label">
+              <div className="section-bar" />
+              <h2 className="section-title">Trending Now</h2>
+            </div>
+
+            <div
+              className="trending-row-container"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              <div className="row-fade-left" />
+              <div className="row-fade-right" />
+              <button className="row-arrow row-arrow-left" onClick={() => scrollRow("left")} aria-label="Scroll left">‹</button>
+              <button className="row-arrow row-arrow-right" onClick={() => scrollRow("right")} aria-label="Scroll right">›</button>
+
+              <div className="movie-row" ref={rowRef}>
+                {trending.map((movie, i) => (
+                  <MovieCard key={`tr-${i}`} movie={movie} variant="row" />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── DIVIDER ── */}
+        {trending.length > 0 && messages.some(m => m.role !== "typing") && (
+          <div className="section-divider" />
+        )}
+
+        {/* ── MESSAGES ── */}
+        {messages.map((msg, i) => {
+          if (msg.role === "user") return (
+            <div key={i} id={`msg-${i}`} className="user-row msg-enter">
+              <span className="user-bubble">{msg.text}</span>
+            </div>
+          );
+
+          if (msg.role === "typing") return (
+            <div key={i} id="typing-dots" className="typing-row msg-enter">
+              <div className="typing-bubble">
+                <div className="typing-dots"><span /><span /><span /></div>
+              </div>
+            </div>
+          );
+
+          if (msg.role === "ai") return (
+            <div key={i} id={`msg-${i}`} className="ai-box msg-enter">
+              <div className="ai-label">
+                <div className="ai-dot">✦</div>
+                <span className="ai-label-text">AI Recommendation</span>
+              </div>
+              {msg.text && <p className="ai-text">{renderBold(msg.text)}</p>}
+              {msg.movies?.length > 0 && (
+                <div className="movies-grid">
+                  {msg.movies.map((m, j) => (
+                    <MovieCard key={`ai-${j}`} movie={m} variant="grid" />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+
+          return null;
+        })}
+      </main>
+
+
+      {/* ═══════════ MOVIE DETAIL MODAL ═══════════ */}
+      {selectedMovie && (
+        <div
+          className="modal-overlay"
+          onClick={e => { if (e.target === e.currentTarget) { setSelectedMovie(null); setInsight(""); } }}
+        >
+          <div className="modal-content">
+            <button
+              className="modal-close"
+              onClick={() => { setSelectedMovie(null); setInsight(""); }}
+              aria-label="Close"
+            >✕</button>
+
+            <h2 className="modal-title">{selectedMovie.title}</h2>
+            <div className="modal-meta">
+              <span className="modal-rating-text">★ {Number(selectedMovie.rating).toFixed(1)}</span>
+              <span className="modal-sep" />
+              <span className="modal-year">{selectedMovie.releaseDate}</span>
+            </div>
+
+            {selectedMovie.trailer && (
+              <div className="modal-trailer">
+                <iframe
+                  width="100%" height="400"
+                  src={`https://www.youtube.com/embed/${selectedMovie.trailer}`}
+                  title="Trailer" frameBorder="0" allowFullScreen
+                />
+              </div>
+            )}
+
+            {selectedMovie.overview && (
+              <p className="modal-overview">{selectedMovie.overview}</p>
+            )}
+
+            {(insightLoading || insight) && (
+              <div className="insight-block">
+                <div className="insight-header">
+                  <span style={{ fontSize: 14, color: "var(--gold)" }}>✦</span>
+                  <h3 className="insight-label">AI Insight</h3>
+                </div>
+                {insightLoading ? (
+                  <div className="insight-loading">
+                    <div className="typing-dots"><span /><span /><span /></div>
+                    <span className="insight-loading-text">Analyzing cinematic data…</span>
+                  </div>
+                ) : (
+                  <p className="insight-text">{renderBold(animatedInsight || insight)}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
-
-
-      <div style={{ marginTop: "30px" }}>
-        {messages.map((msg, index) => {
-
-          if (msg.role === "user") {
-            return (
-              <div
-                key={index}
-                id={`msg-${index}`} /* 👈 ADDED ID */
-                className="messageEnter"
-                style={{
-                  textAlign: "right",
-                  marginBottom: "20px",
-                  scrollMarginTop: "120px" /* 👈 ADDED INVISIBLE BUMPER */
-                }}
-              >
-                <span
-                  style={{
-                    background: "#e50914",
-                    color: "white",
-                    padding: "10px 15px",
-                    borderRadius: "15px",
-                    display: "inline-block"
-                  }}
-                >
-                  {msg.text}
-                </span>
-              </div>
-            );
-          }
-
-
-          if (msg.role === "typing") {
-            return (
-              <div
-                key={index}
-                id="typing-dots"
-                className="messageEnter" /* 👈 Makes it fade in smoothly */
-                style={{
-                  marginBottom: "20px",
-                  display: "inline-block",
-                  background: "rgba(30,30,30,0.6)", /* 👈 Beautiful glass background */
-                  backdropFilter: "blur(10px)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  padding: "16px 24px",
-                  borderRadius: "15px",
-                  scrollMarginTop: "120px" /* 👈 Keeps the scroll perfectly aligned! */
-                }}
-              >
-                <div className="typing">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            );
-          }
-
-          if (msg.role === "ai") {
-            return (
-              <div
-                key={index}
-                id={`msg-${index}`} /* 👈 ADDED ID */
-                className="messageEnter"
-                style={{
-                  marginBottom: "40px",
-                  background: "rgba(30,30,30,0.6)",
-                  backdropFilter: "blur(10px)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  padding: "20px",
-                  borderRadius: "10px",
-                  scrollMarginTop: "120px" /* 👈 ADDED INVISIBLE BUMPER */
-                }}>
-
-                {/* 👇 ADD THIS NEW BLOCK TO SHOW THE AI's TEXT 👇 */}
-                {msg.text && (
-                  <p style={{ marginBottom: "20px", fontSize: "16px", lineHeight: "1.5", color: "#ccc" }}>
-                    {renderFormattedText(msg.text)}
-                  </p>
-                )}
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                    gap: "20px"
-                  }}
-                >
-
-
-
-                  {msg.movies.map((movie, i) => (
-                    <div
-                      key={`${movie.tmdbId}-${i}`}
-                      onMouseEnter={(e) => handleCardMouseEnter(e, movie.tmdbId)} /* 👈 Passed the event 'e' here */
-                      onMouseLeave={handleCardMouseLeave}
-                      onClick={() => {
-                        setSelectedMovie(movie);
-                        setAnimatedInsight("");
-                        fetchInsight(movie.title);
-                      }}
-                      style={{
-                        position: "relative",
-                        zIndex: playingTrailerId === movie.tmdbId ? 50 : 1,
-                        cursor: "pointer"
-                      }}
-                    >
-                      {/* 1. THE BASE POSTER */}
-                      <div
-                        className="movie-card"
-                        style={{
-                          borderRadius: "12px",
-                          overflow: "hidden",
-                          background: "#1a1a1a",
-                          opacity: playingTrailerId === movie.tmdbId && movie.trailer ? 0 : 1,
-                          transition: "opacity 0.3s ease"
-                        }}
-                      >
-                        <img src={movie.poster} style={{ width: "100%", height: "300px", objectFit: "cover" }} />
-                        <div style={{ padding: "10px" }}>
-                          <h3 style={{ fontSize: "16px", margin: "0 0 10px 0" }}>{movie.title}</h3>
-                          <p style={{ margin: "0 0 5px 0" }}>⭐ {Number(movie.rating).toFixed(1)}</p>
-                          <p style={{ fontSize: "12px", color: "#555", margin: 0 }}>{movie.releaseDate}</p>
-                        </div>
-                      </div>
-
-                      {/* 2. THE WIDESCREEN POPOUT TRAILER */}
-                      {playingTrailerId === movie.tmdbId && movie.trailer && (
-                        <div className={`popout-card popout-${popoutDirection}`}> {/* 👈 Added the dynamic edge direction here */}
-                          <iframe
-                            src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${movie.trailer}`}
-                            style={{ width: "100%", height: "270px", border: "none", pointerEvents: "none" }}
-                            allow="autoplay"
-                          />
-                          <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", flexGrow: 1 }}>
-                            <h3 style={{ margin: 0, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "75%" }}>
-                              {movie.title}
-                            </h3>
-                            <span style={{ background: "#e50914", padding: "3px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
-                              ⭐ {Number(movie.rating).toFixed(1)}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-
-        })}
-      </div>
-
-
-      {
-        selectedMovie && (
-          <div
-            /* 👇 ADD THIS ENTIRE ONCLICK HANDLER 👇 */
-            onClick={(e) => {
-              // e.target === e.currentTarget ensures it ONLY closes if you click the dark background, 
-              // and NOT when you click the movie poster or text inside the box!
-              if (e.target === e.currentTarget) {
-                setSelectedMovie(null);
-                setInsight("");
-              }
-            }}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0,0,0,0.8)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1000
-            }}
-          >
-            <div
-              style={{
-                backgroundImage: selectedMovie.backdrop_path
-                  ? `url(https://image.tmdb.org/t/p/original${selectedMovie.backdrop_path})`
-                  : "none",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundColor: "rgba(0,0,0,0.9)",
-                backgroundBlendMode: "darken",
-                backdropFilter: "blur(8px)",
-                padding: "30px",
-                borderRadius: "15px",
-                maxWidth: "800px",
-                width: "90%",
-                color: "white",
-                position: "relative",
-                maxHeight: "85vh",
-                overflowY: "auto",
-                scrollBehavior: "smooth",
-                border: "1px solid rgba(255,255,255,0.1)",
-                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
-              }}
-            >
-              <button
-                onClick={() => {
-                  setSelectedMovie(null);
-                  setInsight("");
-                }}
-                style={{
-                  position: "absolute",
-                  top: "10px",
-                  right: "10px",
-                  fontSize: "18px",
-                  cursor: "pointer",
-                  background: "transparent",
-                  color: "white",
-                  border: "none"
-                }}
-              >
-                ✕
-              </button>
-
-              <h2>{selectedMovie.title}</h2>
-
-              {selectedMovie.trailer && (
-                <iframe
-                  width="100%"
-                  height="400"
-                  src={`https://www.youtube.com/embed/${selectedMovie.trailer}`}
-                  title="Trailer"
-                  frameBorder="0"
-                  allowFullScreen
-                  style={{ marginTop: "15px", borderRadius: "10px" }}
-                ></iframe>
-              )}
-
-              <p style={{ marginTop: "15px" }}>
-                {selectedMovie.overview}
-              </p>
-
-              {(insightLoading || insight) && (
-                <div style={{
-                  marginTop: "20px",
-                  background: "rgba(229, 9, 20, 0.1)", // Subtle Netflix red background
-                  borderLeft: "4px solid #e50914", // Red accent line
-                  padding: "15px",
-                  borderRadius: "0 8px 8px 0"
-                }}>
-                  <h3 style={{ fontSize: "18px", marginBottom: "10px", color: "#e50914", display: "flex", alignItems: "center", gap: "8px" }}>
-                    AI Insight:
-                  </h3>
-
-                  {/* If loading is true, show the animation. If false, show the text! */}
-                  {insightLoading ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", height: "24px" }}>
-                      <div className="typing">
-                        <span></span><span></span><span></span>
-                      </div>
-                      <span style={{ color: "#aaa", fontStyle: "italic", fontSize: "14px" }}>
-                        Analyzing cinematic data
-                      </span>
-                    </div>
-                  ) : (
-                    <p style={{ lineHeight: "1.6", margin: 0, color: "#ccc" }}>
-                      {renderFormattedText(animatedInsight || insight)}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <p style={{ marginTop: "15px" }}>
-                ⭐ Rating: {Number(selectedMovie.rating).toFixed(1)}
-              </p>
-
-              <p>
-                Release: {selectedMovie.releaseDate}
-              </p>
-            </div>
-          </div>
-        )
-      }
-
     </div>
   );
 }
