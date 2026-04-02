@@ -1,147 +1,150 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-
-/* ══════════════════════════════════════════════════════════
-   MOOD BOARD DATA
-   Each mood fires a specific AI query and has its own vibe
-══════════════════════════════════════════════════════════ */
-import { 
-  CloudRain, 
-  Zap, 
-  Droplets, 
-  Brain, 
-  Heart, 
-  Sun, 
-  Gem, 
-  Compass 
+import {
+  CloudRain, Zap, Droplets, Brain,
+  Heart, Sun, Gem, Compass, MessageCircle, X, Send, Trash2
 } from "lucide-react";
 
 const MOODS = [
-  {
-    label: "Rainy Night In",
-    icon: CloudRain,
-    description: "Cozy, slow, atmospheric",
-    query: "cozy atmospheric movies for a rainy night at home",
-    gradient: "linear-gradient(135deg, #1a2a4a 0%, #0d1b2e 100%)",
-    glow: "rgba(80,120,200,0.22)",
-    border: "rgba(80,140,220,0.2)",
-  },
-  {
-    label: "Hype & Adrenaline",
-    icon: Zap,
-    description: "Fast, loud, electric",
-    query: "high energy action packed adrenaline rush movies",
-    gradient: "linear-gradient(135deg, #2d1200 0%, #1a0800 100%)",
-    glow: "rgba(220,100,20,0.22)",
-    border: "rgba(240,120,30,0.25)",
-  },
-  {
-    label: "Cry It Out",
-    icon: Droplets,
-    description: "Emotional, raw, cathartic",
-    query: "deeply emotional movies that will make me cry",
-    gradient: "linear-gradient(135deg, #0e1e2e 0%, #071018 100%)",
-    glow: "rgba(60,160,200,0.2)",
-    border: "rgba(80,170,210,0.2)",
-  },
-  {
-    label: "Mind-Bending",
-    icon: Brain,
-    description: "Twisted, cerebral, surreal",
-    query: "mind bending cerebral movies that mess with your head",
-    gradient: "linear-gradient(135deg, #1a0d2e 0%, #0d0618 100%)",
-    glow: "rgba(140,60,220,0.22)",
-    border: "rgba(160,80,240,0.22)",
-  },
-  {
-    label: "Date Night",
-    icon: Heart,
-    description: "Charming, warm, romantic",
-    query: "romantic charming movies perfect for a date night",
-    gradient: "linear-gradient(135deg, #2e1020 0%, #1a0810 100%)",
-    glow: "rgba(220,80,120,0.2)",
-    border: "rgba(230,100,140,0.22)",
-  },
-  {
-    label: "Feel-Good Friday",
-    icon: Sun,
-    description: "Fun, uplifting, joyful",
-    query: "feel good uplifting movies to watch on a Friday night",
-    gradient: "linear-gradient(135deg, #1e1800 0%, #120f00 100%)",
-    glow: "rgba(220,180,30,0.2)",
-    border: "rgba(230,190,40,0.22)",
-  },
-  {
-    label: "Hidden Gems",
-    icon: Gem,
-    description: "Underrated, surprising, fresh",
-    query: "underrated hidden gem movies most people haven't seen",
-    gradient: "linear-gradient(135deg, #001e1a 0%, #00100e 100%)",
-    glow: "rgba(30,200,170,0.2)",
-    border: "rgba(40,210,180,0.2)",
-  },
-  {
-    label: "Epic Adventure",
-    icon: Compass,
-    description: "Grand, sweeping, legendary",
-    query: "epic adventure movies with grand sweeping storytelling",
-    gradient: "linear-gradient(135deg, #1a1200 0%, #0e0a00 100%)",
-    glow: "rgba(180,140,40,0.2)",
-    border: "rgba(200,160,50,0.2)",
-  },
+  { label: "Rainy Night In",    icon: CloudRain, description: "Cozy, slow, atmospheric",     query: "cozy atmospheric movies for a rainy night at home",         gradient: "linear-gradient(135deg, #1a2a4a 0%, #0d1b2e 100%)", glow: "rgba(80,120,200,0.22)",  border: "rgba(80,140,220,0.2)"   },
+  { label: "Hype & Adrenaline", icon: Zap,       description: "Fast, loud, electric",         query: "high energy action packed adrenaline rush movies",          gradient: "linear-gradient(135deg, #2d1200 0%, #1a0800 100%)", glow: "rgba(220,100,20,0.22)",  border: "rgba(240,120,30,0.25)"  },
+  { label: "Cry It Out",        icon: Droplets,  description: "Emotional, raw, cathartic",    query: "deeply emotional movies that will make me cry",             gradient: "linear-gradient(135deg, #0e1e2e 0%, #071018 100%)", glow: "rgba(60,160,200,0.2)",   border: "rgba(80,170,210,0.2)"   },
+  { label: "Mind-Bending",      icon: Brain,     description: "Twisted, cerebral, surreal",   query: "mind bending cerebral movies that mess with your head",     gradient: "linear-gradient(135deg, #1a0d2e 0%, #0d0618 100%)", glow: "rgba(140,60,220,0.22)",  border: "rgba(160,80,240,0.22)"  },
+  { label: "Date Night",        icon: Heart,     description: "Charming, warm, romantic",     query: "romantic charming movies perfect for a date night",         gradient: "linear-gradient(135deg, #2e1020 0%, #1a0810 100%)", glow: "rgba(220,80,120,0.2)",   border: "rgba(230,100,140,0.22)" },
+  { label: "Feel-Good Friday",  icon: Sun,       description: "Fun, uplifting, joyful",       query: "feel good uplifting movies to watch on a Friday night",     gradient: "linear-gradient(135deg, #1e1800 0%, #120f00 100%)", glow: "rgba(220,180,30,0.2)",   border: "rgba(230,190,40,0.22)"  },
+  { label: "Hidden Gems",       icon: Gem,       description: "Underrated, surprising, fresh",query: "underrated hidden gem movies most people haven't seen",     gradient: "linear-gradient(135deg, #001e1a 0%, #00100e 100%)", glow: "rgba(30,200,170,0.2)",   border: "rgba(40,210,180,0.2)"   },
+  { label: "Epic Adventure",    icon: Compass,   description: "Grand, sweeping, legendary",   query: "epic adventure movies with grand sweeping storytelling",    gradient: "linear-gradient(135deg, #1a1200 0%, #0e0a00 100%)", glow: "rgba(180,140,40,0.2)",   border: "rgba(200,160,50,0.2)"   },
 ];
 
-
 export default function ChatPage() {
-  const [message, setMessage]           = useState("");
-  const [messages, setMessages]         = useState([]);
-  const [loading, setLoading]           = useState(false);
-  const [isHovered, setIsHovered]       = useState(false);
-  const [insight, setInsight]           = useState("");
+  const [message, setMessage]               = useState("");
+  const [messages, setMessages]             = useState([]);
+  const [loading, setLoading]               = useState(false);
+  const [isHovered, setIsHovered]           = useState(false);
+  const [insight, setInsight]               = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
-  const [trending, setTrending]         = useState([]);
+  const [trending, setTrending]             = useState([]);
   const [animatedInsight, setAnimatedInsight] = useState("");
-  const [selectedMovie, setSelectedMovie] = useState(null);
+  const [selectedMovie, setSelectedMovie]   = useState(null);
   const [trendingLoading, setTrendingLoading] = useState(true);
-  const rowRef    = useRef(null);
+  const rowRef = useRef(null);
 
-  // ── Autocomplete (main search) ──
-  const [suggestions, setSuggestions]   = useState([]);
+  // ── Autocomplete ──
+  const [suggestions, setSuggestions]       = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex]   = useState(-1);
-  const [isSearching, setIsSearching]   = useState(false);
+  const [activeIndex, setActiveIndex]       = useState(-1);
+  const [isSearching, setIsSearching]       = useState(false);
   const searchRef   = useRef(null);
   const debounceRef = useRef(null);
 
-  // ── Cinema Mode ──
-  const [cinemaMode, setCinemaMode]     = useState(false);
-  const [ambientColor, setAmbientColor] = useState("201,162,39");
+  // ── Cinema ──
+  const [cinemaMode, setCinemaMode]         = useState(false);
+  const [ambientColor, setAmbientColor]     = useState("201,162,39");
 
   // ── Mood board ──
-  const showMoodBoard  = messages.length === 0 && !loading;
-  const [activeMoodIdx, setActiveMoodIdx] = useState(null);
+  const showMoodBoard   = messages.length === 0 && !loading;
+  const [activeMoodIdx, setActiveMoodIdx]   = useState(null);
 
-  /* ══════════════════════════════════════════════════════════
-     NEW: DOUBLE FEATURE STATE
-  ══════════════════════════════════════════════════════════ */
-  const [dfMovieA, setDfMovieA]         = useState("");
-  const [dfMovieB, setDfMovieB]         = useState("");
+  // ── Double Feature ──
+  const [dfMovieA, setDfMovieA]             = useState("");
+  const [dfMovieB, setDfMovieB]             = useState("");
   const [dfSuggestionsA, setDfSuggestionsA] = useState([]);
   const [dfSuggestionsB, setDfSuggestionsB] = useState([]);
-  const [dfShowA, setDfShowA]           = useState(false);
-  const [dfShowB, setDfShowB]           = useState(false);
-  const [dfActiveA, setDfActiveA]       = useState(-1);
-  const [dfActiveB, setDfActiveB]       = useState(-1);
-  const [dfLoading, setDfLoading]       = useState(false);
-  const [dfResult, setDfResult]         = useState(null);
-  const [dfError, setDfError]           = useState("");
+  const [dfShowA, setDfShowA]               = useState(false);
+  const [dfShowB, setDfShowB]               = useState(false);
+  const [dfActiveA, setDfActiveA]           = useState(-1);
+  const [dfActiveB, setDfActiveB]           = useState(-1);
+  const [dfLoading, setDfLoading]           = useState(false);
+  const [dfResult, setDfResult]             = useState(null);
+  const [dfError, setDfError]               = useState("");
   const dfDebounceA = useRef(null);
   const dfDebounceB = useRef(null);
   const dfWrapA     = useRef(null);
   const dfWrapB     = useRef(null);
 
-  /* ── NEW: Debounced autocomplete for Double Feature inputs ── */
+  /* ══════════════════════════════════════════════════════════
+     NEW: FLOATING AI CHAT STATE
+  ══════════════════════════════════════════════════════════ */
+  const [floatOpen, setFloatOpen]           = useState(false);
+  const [floatMessages, setFloatMessages]   = useState([]);
+  const [floatInput, setFloatInput]         = useState("");
+  const [floatLoading, setFloatLoading]     = useState(false);
+  const floatRef      = useRef(null);
+  const floatInputRef = useRef(null);
+  const floatBodyRef  = useRef(null);
+
+  /* ── NEW: Pre-fill context when a movie modal is open ── */
+  useEffect(() => {
+    if (floatOpen && selectedMovie) {
+      setFloatInput(`Tell me more about ${selectedMovie.title}`);
+      setTimeout(() => floatInputRef.current?.focus(), 80);
+    }
+  }, [floatOpen, selectedMovie]);
+
+  /* ── NEW: Auto-scroll float drawer to bottom ── */
+  useEffect(() => {
+    if (floatBodyRef.current) {
+      floatBodyRef.current.scrollTop = floatBodyRef.current.scrollHeight;
+    }
+  }, [floatMessages]);
+
+  /* ── NEW: Close float on outside click + Escape ── */
+  useEffect(() => {
+    const clickHandler = (e) => {
+      if (floatRef.current && !floatRef.current.contains(e.target)) setFloatOpen(false);
+    };
+    const keyHandler = (e) => { if (e.key === "Escape") setFloatOpen(false); };
+    document.addEventListener("mousedown", clickHandler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", clickHandler);
+      document.removeEventListener("keydown", keyHandler);
+    };
+  }, []);
+
+  /* ── NEW: Focus input when drawer opens ── */
+  useEffect(() => {
+    if (floatOpen) setTimeout(() => floatInputRef.current?.focus(), 120);
+  }, [floatOpen]);
+
+  /* ── NEW: Send message in float drawer ── */
+  const sendFloatMessage = async (overrideText) => {
+    const cur = (overrideText !== undefined ? overrideText : floatInput).trim();
+    if (!cur || floatLoading) return;
+    setFloatInput("");
+    setFloatMessages(prev => [...prev, { role: "user", text: cur }, { role: "typing" }]);
+    setFloatLoading(true);
+    try {
+      const res  = await fetch("http://localhost:5000/api/chat/movie-chat", {
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ message: cur }),
+      });
+      const data = await res.json();
+      const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
+      setFloatMessages(prev => [
+        ...prev.filter(m => m.role !== "typing"),
+        { role: "ai", text: "", movies: data.results || [] },
+      ]);
+      let built = "";
+      for (const w of reply.split(" ")) {
+        built += w + " ";
+        setFloatMessages(prev => {
+          const u = [...prev];
+          u[u.length - 1] = { ...u[u.length - 1], text: built };
+          return u;
+        });
+        await new Promise(r => setTimeout(r, 28));
+      }
+    } catch {
+      setFloatMessages(prev => [
+        ...prev.filter(m => m.role !== "typing"),
+        { role: "ai", text: "Something went wrong. Please try again.", movies: [] },
+      ]);
+    } finally { setFloatLoading(false); }
+  };
+
+  // ── Double Feature helpers ──
   const makeDfDebounce = (value, setter, showSetter, activeSetter, debounceTimer) => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     if (value.trim().length < 2) { setter([]); showSetter(false); return; }
@@ -155,17 +158,9 @@ export default function ChatPage() {
     }, 350);
   };
 
-  useEffect(() => {
-    makeDfDebounce(dfMovieA, setDfSuggestionsA, setDfShowA, setDfActiveA, dfDebounceA);
-    return () => clearTimeout(dfDebounceA.current);
-  }, [dfMovieA]);
+  useEffect(() => { makeDfDebounce(dfMovieA, setDfSuggestionsA, setDfShowA, setDfActiveA, dfDebounceA); return () => clearTimeout(dfDebounceA.current); }, [dfMovieA]);
+  useEffect(() => { makeDfDebounce(dfMovieB, setDfSuggestionsB, setDfShowB, setDfActiveB, dfDebounceB); return () => clearTimeout(dfDebounceB.current); }, [dfMovieB]);
 
-  useEffect(() => {
-    makeDfDebounce(dfMovieB, setDfSuggestionsB, setDfShowB, setDfActiveB, dfDebounceB);
-    return () => clearTimeout(dfDebounceB.current);
-  }, [dfMovieB]);
-
-  /* ── NEW: Close df dropdowns on outside click ── */
   useEffect(() => {
     const handler = (e) => {
       if (dfWrapA.current && !dfWrapA.current.contains(e.target)) { setDfShowA(false); setDfActiveA(-1); }
@@ -175,7 +170,6 @@ export default function ChatPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* ── NEW: Fire Double Feature request ── */
   const runDoubleFeature = async () => {
     if (!dfMovieA.trim() || !dfMovieB.trim() || dfLoading) return;
     setDfLoading(true); setDfResult(null); setDfError("");
@@ -191,10 +185,8 @@ export default function ChatPage() {
     finally { setDfLoading(false); }
   };
 
-  /* ── NEW: Reset Double Feature ── */
   const resetDf = () => { setDfMovieA(""); setDfMovieB(""); setDfResult(null); setDfError(""); };
 
-  /* ── Helpers for df keyboard nav ── */
   const dfKeyDown = (e, suggestions, activeIdx, setActive, showSetter, valueSetter, showState) => {
     if (!showState) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setActive(i => Math.min(i + 1, suggestions.length - 1)); }
@@ -205,7 +197,7 @@ export default function ChatPage() {
     } else if (e.key === "Escape") { showSetter(false); setActive(-1); }
   };
 
-  /* ── Cinema ── */
+  // ── Cinema ──
   const extractDominantColor = (imageUrl) => new Promise((resolve) => {
     if (!imageUrl) { resolve("201,162,39"); return; }
     const img = new Image(); img.crossOrigin = "anonymous";
@@ -237,10 +229,10 @@ export default function ChatPage() {
     if (selectedMovie?.poster) { const color = await extractDominantColor(selectedMovie.poster); setAmbientColor(color); }
     setCinemaMode(true); document.body.style.overflow = "hidden";
   };
-  const exitCinema  = () => { setCinemaMode(false); document.body.style.overflow = ""; };
-  const closeModal  = () => { exitCinema(); setSelectedMovie(null); setInsight(""); };
+  const exitCinema = () => { setCinemaMode(false); document.body.style.overflow = ""; };
+  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); };
 
-  /* ── Main autocomplete ── */
+  // ── Main autocomplete ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = message.trim();
@@ -279,7 +271,6 @@ export default function ChatPage() {
 
   const selectSuggestion = (movie) => { setShowSuggestions(false); setActiveIndex(-1); sendMessage(movie.title); };
 
-  /* ── Mood board ── */
   const fireMood = async (mood, idx) => {
     setActiveMoodIdx(idx);
     await new Promise(r => setTimeout(r, 180));
@@ -287,7 +278,6 @@ export default function ChatPage() {
     sendMessage(mood.query);
   };
 
-  /* ── Trending / scroll ── */
   const scrollRow = (dir) => {
     if (!rowRef.current) return;
     const { scrollLeft, clientWidth } = rowRef.current;
@@ -364,7 +354,6 @@ export default function ChatPage() {
         : p
     ) ?? "";
 
-  /* ── Skeleton ── */
   const SkeletonCard = ({ variant }) => {
     const isRow = variant === "row";
     return isRow ? (
@@ -388,7 +377,6 @@ export default function ChatPage() {
     );
   };
 
-  /* ── Movie Card ── */
   const MovieCard = ({ movie, variant }) => {
     const isRow = variant === "row";
     return (
@@ -429,7 +417,20 @@ export default function ChatPage() {
     );
   };
 
-  /* ── NEW: Reusable mini autocomplete dropdown for Double Feature ── */
+  /* ── NEW: Mini movie card for float drawer ── */
+  const FloatMovieCard = ({ movie }) => (
+    <div
+      className="float-movie-card"
+      onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setCinemaMode(false); fetchInsight(movie.title); }}
+    >
+      {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" />}
+      <div className="float-movie-info">
+        <p className="float-movie-title">{movie.title}</p>
+        <p className="float-movie-rating">★ {Number(movie.rating).toFixed(1)}</p>
+      </div>
+    </div>
+  );
+
   const DfDropdown = ({ suggestions, activeIdx, onSelect, onHover }) => (
     <div className="df-dropdown">
       {suggestions.map((movie, i) => (
@@ -505,7 +506,7 @@ export default function ChatPage() {
         .send-btn:active:not(:disabled) { transform: translateY(0); }
         .send-btn:disabled { opacity: 0.52; cursor: not-allowed; }
 
-        /* ═══ AUTOCOMPLETE (main) ═══ */
+        /* ═══ AUTOCOMPLETE ═══ */
         .autocomplete-dropdown { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22); border-radius: 14px; overflow: hidden; z-index: 999; box-shadow: 0 24px 60px rgba(0,0,0,0.88); animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .auto-item { display: flex; align-items: center; gap: 13px; padding: 10px 15px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
@@ -543,102 +544,38 @@ export default function ChatPage() {
         .mood-arrow { position: absolute; bottom: 14px; right: 16px; font-size: 16px; color: rgba(255,255,255,0.25); transform: translateX(-4px); transition: transform 0.28s ease, color 0.28s ease, opacity 0.28s ease; opacity: 0; }
         .mood-tile:hover .mood-arrow { transform: translateX(0); color: rgba(255,255,255,0.55); opacity: 1; }
 
-        /* ═══════════════════════════════════════════
-           NEW: DOUBLE FEATURE PANEL
-        ═══════════════════════════════════════════ */
-        .df-wrap {
-          margin-bottom: 60px;
-          background: linear-gradient(160deg, #0e0b00, #080808);
-          border: 1px solid rgba(201,162,39,0.14);
-          border-radius: 20px;
-          padding: 32px 32px 28px;
-          animation: fadeUp 0.55s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-          position: relative; overflow: hidden;
-        }
-        /* subtle top accent line */
-        .df-wrap::before {
-          content: '';
-          position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(201,162,39,0.35), transparent);
-        }
+        /* ═══ DOUBLE FEATURE ═══ */
+        .df-wrap { margin-bottom: 60px; background: linear-gradient(160deg, #0e0b00, #080808); border: 1px solid rgba(201,162,39,0.14); border-radius: 20px; padding: 32px 32px 28px; animation: fadeUp 0.55s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; position: relative; overflow: hidden; }
+        .df-wrap::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,39,0.35), transparent); }
         .df-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); opacity: 0.7; margin-bottom: 8px; }
         .df-heading { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.82); margin-bottom: 6px; }
         .df-subhead { font-size: 13px; color: var(--text-muted); font-weight: 300; margin-bottom: 26px; }
-
         .df-inputs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; margin-bottom: 20px; }
         .df-input-wrap { position: relative; }
         .df-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
-        .df-input {
-          width: 100%; padding: 13px 16px; border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.04); color: white;
-          font-size: 14px; font-family: 'DM Sans', sans-serif;
-          transition: border-color 0.25s, box-shadow 0.25s;
-        }
+        .df-input { width: 100%; padding: 13px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: white; font-size: 14px; font-family: 'DM Sans', sans-serif; transition: border-color 0.25s, box-shadow 0.25s; }
         .df-input::placeholder { color: rgba(255,255,255,0.2); }
         .df-input:focus { outline: none; border-color: rgba(201,162,39,0.45); box-shadow: 0 0 0 3px rgba(201,162,39,0.06); }
-
-        .df-connector {
-          display: flex; flex-direction: column; align-items: center; gap: 4px;
-          padding-top: 22px;
-        }
+        .df-connector { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 22px; }
         .df-connector-text { font-size: 10px; font-weight: 700; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
         .df-connector-icon { font-size: 20px; color: rgba(201,162,39,0.4); }
-
-        /* df mini autocomplete */
-        .df-dropdown {
-          position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-          background: #0f0f0f; border: 1px solid rgba(201,162,39,0.2);
-          border-radius: 12px; overflow: hidden; z-index: 500;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.9);
-          animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
+        .df-dropdown { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #0f0f0f; border: 1px solid rgba(201,162,39,0.2); border-radius: 12px; overflow: hidden; z-index: 500; box-shadow: 0 20px 50px rgba(0,0,0,0.9); animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .df-drop-item { display: flex; align-items: center; gap: 10px; padding: 9px 13px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
         .df-drop-item:hover, .df-drop-item.active { background: rgba(201,162,39,0.07); border-left-color: var(--gold); }
         .df-drop-item + .df-drop-item { border-top: 1px solid rgba(255,255,255,0.04); }
         .df-drop-poster { width: 28px; height: 42px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
         .df-drop-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
         .df-drop-meta { font-size: 11px; color: var(--gold); opacity: 0.75; }
-
         .df-actions { display: flex; align-items: center; gap: 12px; }
-        .df-btn {
-          padding: 12px 28px; border-radius: 10px;
-          border: 1px solid rgba(201,162,39,0.45);
-          background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%);
-          color: #0a0800; font-weight: 700; font-size: 13px;
-          font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em;
-          text-transform: uppercase; cursor: pointer;
-          transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s;
-          white-space: nowrap;
-        }
+        .df-btn { padding: 12px 28px; border-radius: 10px; border: 1px solid rgba(201,162,39,0.45); background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%); color: #0a0800; font-weight: 700; font-size: 13px; font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s; white-space: nowrap; }
         .df-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(201,162,39,0.38); }
         .df-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .df-reset-btn {
-          padding: 12px 18px; border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.1);
-          background: transparent; color: rgba(255,255,255,0.4);
-          font-size: 12px; font-family: 'DM Sans', sans-serif;
-          cursor: pointer; transition: color 0.2s, border-color 0.2s;
-        }
+        .df-reset-btn { padding: 12px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.4); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: color 0.2s, border-color 0.2s; }
         .df-reset-btn:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
-
-        /* ── df loading dots ── */
         .df-loading { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
         .df-loading-text { font-size: 13px; color: var(--text-muted); font-style: italic; }
-
-        /* ── df result card ── */
-        .df-result {
-          margin-top: 24px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(201,162,39,0.18);
-          border-radius: 16px; overflow: hidden;
-          display: grid; grid-template-columns: auto 1fr;
-          animation: fadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-        .df-result-poster {
-          width: 240px; flex-shrink: 0;
-          cursor: pointer; position: relative; overflow: hidden;
-        }
+        .df-result { margin-top: 24px; background: rgba(255,255,255,0.025); border: 1px solid rgba(201,162,39,0.18); border-radius: 16px; overflow: hidden; display: grid; grid-template-columns: auto 1fr; animation: fadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .df-result-poster { width: 240px; flex-shrink: 0; cursor: pointer; position: relative; overflow: hidden; }
         .df-result-poster img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease; }
         .df-result-poster:hover img { transform: scale(1.05); }
         .df-result-body { padding: 24px 26px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
@@ -648,12 +585,7 @@ export default function ChatPage() {
         .df-result-meta { display: flex; align-items: center; gap: 12px; }
         .df-result-rating { color: var(--gold); font-weight: 700; font-size: 13px; }
         .df-result-year { color: var(--text-muted); font-size: 12px; }
-        .df-result-reason {
-          font-size: 14px; line-height: 1.75; color: rgba(255,255,255,0.58);
-          font-weight: 300; font-style: italic;
-          border-left: 2px solid rgba(201,162,39,0.3);
-          padding-left: 14px;
-        }
+        .df-result-reason { font-size: 14px; line-height: 1.75; color: rgba(255,255,255,0.58); font-weight: 300; font-style: italic; border-left: 2px solid rgba(201,162,39,0.3); padding-left: 14px; }
         .df-error { padding: 12px 16px; background: rgba(220,60,60,0.08); border: 1px solid rgba(220,60,60,0.18); border-radius: 10px; color: rgba(255,100,100,0.8); font-size: 13px; margin-top: 16px; }
 
         /* ═══ TRENDING ═══ */
@@ -750,6 +682,203 @@ export default function ChatPage() {
         .insight-loading-text { color: var(--text-muted); font-style: italic; font-size: 13px; }
         .insight-text { font-size: 14px; line-height: 1.78; color: rgba(255,255,255,0.62); font-weight: 300; }
 
+        /* ═══════════════════════════════════════════════════
+           NEW: FLOATING AI BUTTON + DRAWER
+        ═══════════════════════════════════════════════════ */
+
+        /* ── Floating button ── */
+        .float-btn {
+          position: fixed; bottom: 32px; right: 32px; z-index: 800;
+          width: 58px; height: 58px; border-radius: 50%;
+          background: linear-gradient(135deg, var(--gold-lt), var(--gold));
+          border: none; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 8px 32px rgba(201,162,39,0.45), 0 0 0 0 rgba(201,162,39,0.3);
+          transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
+          animation: floatPulse 3s ease-in-out infinite;
+        }
+        .float-btn:hover {
+          transform: scale(1.1) translateY(-3px);
+          box-shadow: 0 16px 44px rgba(201,162,39,0.55), 0 0 0 8px rgba(201,162,39,0.08);
+          animation: none;
+        }
+        .float-btn.open {
+          transform: scale(0.92);
+          animation: none;
+          box-shadow: 0 4px 16px rgba(201,162,39,0.3);
+        }
+        @keyframes floatPulse {
+          0%, 100% { box-shadow: 0 8px 32px rgba(201,162,39,0.45), 0 0 0 0 rgba(201,162,39,0.3); }
+          50%       { box-shadow: 0 8px 32px rgba(201,162,39,0.45), 0 0 0 10px rgba(201,162,39,0); }
+        }
+
+        /* context badge — shows when a movie is open */
+        .float-badge {
+          position: absolute; top: -4px; right: -4px;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: #f5c842; border: 2px solid #080808;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 9px; font-weight: 800; color: #0a0800;
+          animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+        }
+        @keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
+
+        /* ── Drawer ── */
+        .float-drawer {
+          position: fixed; bottom: 104px; right: 32px; z-index: 800;
+          width: 380px;
+          background: linear-gradient(160deg, #0f0e0a, #0a0a0a);
+          border: 1px solid rgba(201,162,39,0.2);
+          border-radius: 20px;
+          box-shadow: 0 32px 80px rgba(0,0,0,0.92), 0 0 0 1px rgba(255,255,255,0.03);
+          display: flex; flex-direction: column;
+          overflow: hidden;
+          transform-origin: bottom right;
+          animation: drawerIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+          max-height: 520px;
+        }
+        @keyframes drawerIn {
+          from { opacity: 0; transform: scale(0.88) translateY(16px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+        .float-drawer-exit {
+          animation: drawerOut 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+        }
+        @keyframes drawerOut {
+          to { opacity: 0; transform: scale(0.9) translateY(12px); }
+        }
+
+        /* drawer header */
+        .float-header {
+          padding: 16px 18px 14px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          display: flex; align-items: center; justify-content: space-between;
+          flex-shrink: 0;
+        }
+        .float-header-left { display: flex; align-items: center; gap: 10px; }
+        .float-header-dot {
+          width: 8px; height: 8px; border-radius: 50%;
+          background: var(--gold);
+          box-shadow: 0 0 8px rgba(201,162,39,0.6);
+          animation: dotBlink 2s ease-in-out infinite;
+        }
+        @keyframes dotBlink {
+          0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+        .float-header-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); letter-spacing: 0.02em; }
+        .float-header-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+        .float-header-actions { display: flex; align-items: center; gap: 6px; }
+        .float-icon-btn {
+          width: 30px; height: 30px; border-radius: 8px;
+          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.4); cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.2s, color 0.2s;
+        }
+        .float-icon-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+        .float-icon-btn.danger:hover { background: rgba(220,60,60,0.12); color: rgba(255,100,100,0.8); border-color: rgba(220,60,60,0.2); }
+
+        /* drawer body — scrollable message area */
+        .float-body {
+          flex: 1; overflow-y: auto; padding: 16px 16px 8px;
+          display: flex; flex-direction: column; gap: 12px;
+          scrollbar-width: thin; scrollbar-color: rgba(201,162,39,0.2) transparent;
+        }
+        .float-body::-webkit-scrollbar { width: 3px; }
+        .float-body::-webkit-scrollbar-thumb { background: rgba(201,162,39,0.2); border-radius: 99px; }
+
+        /* empty state inside drawer */
+        .float-empty {
+          flex: 1; display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          gap: 10px; padding: 32px 16px; text-align: center;
+        }
+        .float-empty-icon { color: rgba(201,162,39,0.25); }
+        .float-empty-text { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+        .float-empty-hint {
+          font-size: 11px; color: rgba(201,162,39,0.4);
+          background: rgba(201,162,39,0.05); border: 1px solid rgba(201,162,39,0.1);
+          border-radius: 8px; padding: 6px 12px; margin-top: 4px;
+        }
+
+        /* individual drawer messages */
+        .float-msg-user {
+          align-self: flex-end;
+          background: linear-gradient(135deg, #1a1200, #271d00);
+          border: 1px solid rgba(201,162,39,0.22);
+          color: var(--gold-lt); padding: 9px 14px;
+          border-radius: 14px 14px 3px 14px;
+          font-size: 13px; font-weight: 500; max-width: 84%;
+          line-height: 1.5;
+          animation: fadeUp 0.3s ease both;
+        }
+        .float-msg-ai {
+          align-self: flex-start; max-width: 92%;
+          animation: fadeUp 0.3s ease both;
+        }
+        .float-msg-ai-bubble {
+          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 3px 14px 14px 14px;
+          padding: 10px 14px; font-size: 13px;
+          color: rgba(255,255,255,0.72); line-height: 1.65;
+          margin-bottom: 8px;
+        }
+
+        /* mini movie grid inside drawer */
+        .float-movies-grid {
+          display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+        }
+        .float-movie-card {
+          display: flex; align-items: center; gap: 8px;
+          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 10px; padding: 8px; cursor: pointer;
+          transition: background 0.2s, border-color 0.2s;
+        }
+        .float-movie-card:hover { background: rgba(201,162,39,0.06); border-color: rgba(201,162,39,0.2); }
+        .float-movie-poster { width: 32px; height: 48px; border-radius: 5px; object-fit: cover; flex-shrink: 0; background: #1a1a1a; }
+        .float-movie-info { overflow: hidden; }
+        .float-movie-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .float-movie-rating { font-size: 10px; color: var(--gold); }
+
+        /* drawer typing indicator */
+        .float-typing {
+          display: flex; align-items: center; gap: 6px;
+          padding: 4px 2px;
+        }
+        .float-typing-dot {
+          width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+          animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .float-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .float-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        .float-typing-dot:nth-child(3) { animation-delay: 0s; }
+
+        /* drawer input row */
+        .float-input-row {
+          padding: 12px 14px 14px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          display: flex; align-items: center; gap: 8px;
+          flex-shrink: 0;
+        }
+        .float-input {
+          flex: 1; background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px; padding: 10px 14px;
+          color: white; font-size: 13px; font-family: 'DM Sans', sans-serif;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .float-input::placeholder { color: rgba(255,255,255,0.2); }
+        .float-input:focus { outline: none; border-color: rgba(201,162,39,0.4); box-shadow: 0 0 0 3px rgba(201,162,39,0.06); }
+        .float-send-btn {
+          width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+          background: linear-gradient(135deg, var(--gold-lt), var(--gold));
+          border: none; cursor: pointer; color: #0a0800;
+          display: flex; align-items: center; justify-content: center;
+          transition: transform 0.2s ease, opacity 0.2s;
+        }
+        .float-send-btn:hover:not(:disabled) { transform: scale(1.08); }
+        .float-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
         @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
 
         @media (max-width: 900px) {
@@ -767,6 +896,8 @@ export default function ChatPage() {
           .df-wrap { padding: 22px 18px; }
           .df-result { grid-template-columns: 1fr; }
           .df-result-poster { width: 100%; height: 180px; }
+          .float-drawer { width: calc(100vw - 40px); right: 20px; bottom: 96px; }
+          .float-btn { bottom: 24px; right: 20px; }
         }
       `}</style>
 
@@ -831,23 +962,12 @@ export default function ChatPage() {
             <p className="moodboard-heading">What are you in the mood for?</p>
             <div className="mood-grid">
               {MOODS.map((mood, idx) => {
-                const Icon = mood.icon; // 👈 3. Extract the icon component
-
+                const Icon = mood.icon;
                 return (
-                  <div
-                    key={idx}
-                    className={`mood-tile${activeMoodIdx === idx ? " pressed" : ""}`}
-                    style={{
-                      background: mood.gradient,
-                      borderColor: mood.border,
-                      boxShadow: `0 8px 32px ${mood.glow}`,
-                    }}
-                    onClick={() => fireMood(mood, idx)}
-                  >
-                    <span className="mood-icon">
-                      {/* 👇 4. Render the professional icon instead of text */}
-                      <Icon size={28} strokeWidth={1.5} color="white" />
-                    </span>
+                  <div key={idx} className={`mood-tile${activeMoodIdx === idx ? " pressed" : ""}`}
+                    style={{ background: mood.gradient, borderColor: mood.border, boxShadow: `0 8px 32px ${mood.glow}` }}
+                    onClick={() => fireMood(mood, idx)}>
+                    <span className="mood-icon"><Icon size={28} strokeWidth={1.5} color="white" /></span>
                     <span className="mood-label">{mood.label}</span>
                     <span className="mood-desc">{mood.description}</span>
                     <span className="mood-arrow">→</span>
@@ -858,50 +978,35 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════
-            NEW: DOUBLE FEATURE PANEL
-            Only visible on empty state, same as mood board
-        ══════════════════════════════════════════════════ */}
+        {/* ── DOUBLE FEATURE ── */}
         {showMoodBoard && (
           <div className="df-wrap">
             <p className="df-eyebrow">◈ AI matchmaking</p>
             <p className="df-heading">Find your perfect bridge film</p>
             <p className="df-subhead">Love two movies? Tell us — we'll find the one film that sits at the intersection of both.</p>
-
             <div className="df-inputs">
-              {/* ── Movie A ── */}
               <div className="df-input-wrap" ref={dfWrapA}>
                 <p className="df-label">First film you love</p>
-                <input
-                  className="df-input" placeholder="e.g. The Dark Knight"
-                  value={dfMovieA}
+                <input className="df-input" placeholder="e.g. The Dark Knight" value={dfMovieA}
                   onChange={e => setDfMovieA(e.target.value)}
                   onKeyDown={e => dfKeyDown(e, dfSuggestionsA, dfActiveA, setDfActiveA, setDfShowA, setDfMovieA, dfShowA)}
-                  autoComplete="off"
-                />
+                  autoComplete="off" />
                 {dfShowA && dfSuggestionsA.length > 0 && (
                   <DfDropdown suggestions={dfSuggestionsA} activeIdx={dfActiveA}
                     onSelect={m => { setDfMovieA(m.title); setDfShowA(false); setDfActiveA(-1); }}
                     onHover={setDfActiveA} />
                 )}
               </div>
-
-              {/* ── connector ── */}
               <div className="df-connector">
                 <span className="df-connector-icon">✦</span>
                 <span className="df-connector-text">and</span>
               </div>
-
-              {/* ── Movie B ── */}
               <div className="df-input-wrap" ref={dfWrapB}>
                 <p className="df-label">Second film you love</p>
-                <input
-                  className="df-input" placeholder="e.g. Parasite"
-                  value={dfMovieB}
+                <input className="df-input" placeholder="e.g. Parasite" value={dfMovieB}
                   onChange={e => setDfMovieB(e.target.value)}
                   onKeyDown={e => dfKeyDown(e, dfSuggestionsB, dfActiveB, setDfActiveB, setDfShowB, setDfMovieB, dfShowB)}
-                  autoComplete="off"
-                />
+                  autoComplete="off" />
                 {dfShowB && dfSuggestionsB.length > 0 && (
                   <DfDropdown suggestions={dfSuggestionsB} activeIdx={dfActiveB}
                     onSelect={m => { setDfMovieB(m.title); setDfShowB(false); setDfActiveB(-1); }}
@@ -909,31 +1014,21 @@ export default function ChatPage() {
                 )}
               </div>
             </div>
-
-            {/* ── Actions ── */}
             <div className="df-actions">
-              <button className="df-btn"
-                disabled={!dfMovieA.trim() || !dfMovieB.trim() || dfLoading}
-                onClick={runDoubleFeature}>
+              <button className="df-btn" disabled={!dfMovieA.trim() || !dfMovieB.trim() || dfLoading} onClick={runDoubleFeature}>
                 {dfLoading ? "Finding…" : "Find My Bridge Film →"}
               </button>
               {(dfResult || dfError || dfMovieA || dfMovieB) && (
                 <button className="df-reset-btn" onClick={resetDf}>Reset</button>
               )}
             </div>
-
-            {/* ── Loading ── */}
             {dfLoading && (
               <div className="df-loading" style={{ marginTop: 20 }}>
                 <div className="typing-dots"><span /><span /><span /></div>
                 <span className="df-loading-text">Analyzing the DNA of both films…</span>
               </div>
             )}
-
-            {/* ── Error ── */}
             {dfError && <div className="df-error">⚠ {dfError}</div>}
-
-            {/* ── Result ── */}
             {dfResult && !dfLoading && (
               <div className="df-result">
                 <div className="df-result-poster"
@@ -1064,6 +1159,121 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════
+          NEW: FLOATING AI BUTTON + DRAWER
+      ══════════════════════════════════════════════════════════ */}
+      <div ref={floatRef}>
+
+        {/* ── Drawer (rendered above button) ── */}
+        {floatOpen && (
+          <div className="float-drawer">
+
+            {/* Header */}
+            <div className="float-header">
+              <div className="float-header-left">
+                <div className="float-header-dot" />
+                <div>
+                  <p className="float-header-title">Ask Anything</p>
+                  <p className="float-header-sub">
+                    {selectedMovie ? `Chatting about ${selectedMovie.title}` : "Your AI movie companion"}
+                  </p>
+                </div>
+              </div>
+              <div className="float-header-actions">
+                {floatMessages.length > 0 && (
+                  <button className="float-icon-btn danger" title="Clear chat"
+                    onClick={() => setFloatMessages([])}>
+                    <Trash2 size={13} />
+                  </button>
+                )}
+                <button className="float-icon-btn" title="Close" onClick={() => setFloatOpen(false)}>
+                  <X size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Messages body */}
+            <div className="float-body" ref={floatBodyRef}>
+              {floatMessages.length === 0 ? (
+                <div className="float-empty">
+                  <MessageCircle size={32} className="float-empty-icon" strokeWidth={1.5} color="rgba(201,162,39,0.25)" />
+                  <p className="float-empty-text">
+                    {selectedMovie
+                      ? `Ask me anything about ${selectedMovie.title} — cast, director, themes, similar films.`
+                      : "Ask me about any movie, director, genre, or get a personalized recommendation."}
+                  </p>
+                  {selectedMovie && (
+                    <p className="float-empty-hint">Try: "What makes this film special?"</p>
+                  )}
+                </div>
+              ) : (
+                floatMessages.map((msg, i) => {
+                  if (msg.role === "user") return (
+                    <div key={i} className="float-msg-user">{msg.text}</div>
+                  );
+                  if (msg.role === "typing") return (
+                    <div key={i} className="float-typing">
+                      <div className="float-typing-dot" />
+                      <div className="float-typing-dot" />
+                      <div className="float-typing-dot" />
+                    </div>
+                  );
+                  if (msg.role === "ai") return (
+                    <div key={i} className="float-msg-ai">
+                      {msg.text && (
+                        <div className="float-msg-ai-bubble">{renderBold(msg.text)}</div>
+                      )}
+                      {msg.movies?.length > 0 && (
+                        <div className="float-movies-grid">
+                          {msg.movies.slice(0, 4).map((m, j) => (
+                            <FloatMovieCard key={j} movie={m} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                  return null;
+                })
+              )}
+            </div>
+
+            {/* Input row */}
+            <div className="float-input-row">
+              <input
+                ref={floatInputRef}
+                className="float-input"
+                placeholder={selectedMovie ? `Ask about ${selectedMovie.title}…` : "Ask about any movie…"}
+                value={floatInput}
+                onChange={e => setFloatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !floatLoading) sendFloatMessage(); }}
+                autoComplete="off"
+              />
+              <button className="float-send-btn" onClick={() => sendFloatMessage()} disabled={floatLoading || !floatInput.trim()}>
+                <Send size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Floating button ── */}
+        <button
+          className={`float-btn${floatOpen ? " open" : ""}`}
+          onClick={() => setFloatOpen(o => !o)}
+          title="Ask AI anything"
+          aria-label="Open AI chat"
+        >
+          {floatOpen
+            ? <X size={22} color="#0a0800" strokeWidth={2.5} />
+            : <MessageCircle size={22} color="#0a0800" strokeWidth={2.5} />
+          }
+          {/* context badge when a movie is open */}
+          {!floatOpen && selectedMovie && (
+            <span className="float-badge">✦</span>
+          )}
+        </button>
+      </div>
+
     </div>
   );
 }
