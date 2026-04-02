@@ -92,97 +92,155 @@ const MOODS = [
   },
 ];
 
+
 export default function ChatPage() {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [insight, setInsight] = useState("");
+  const [message, setMessage]           = useState("");
+  const [messages, setMessages]         = useState([]);
+  const [loading, setLoading]           = useState(false);
+  const [isHovered, setIsHovered]       = useState(false);
+  const [insight, setInsight]           = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
-  const [trending, setTrending] = useState([]);
+  const [trending, setTrending]         = useState([]);
   const [animatedInsight, setAnimatedInsight] = useState("");
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [trendingLoading, setTrendingLoading] = useState(true);
-  const hoverTimerRef = useRef(null);
-  const rowRef = useRef(null);
+  const rowRef    = useRef(null);
 
-  // ── Autocomplete ──
-  const [suggestions, setSuggestions] = useState([]);
+  // ── Autocomplete (main search) ──
+  const [suggestions, setSuggestions]   = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [isSearching, setIsSearching] = useState(false);
-  const searchRef = useRef(null);
+  const [activeIndex, setActiveIndex]   = useState(-1);
+  const [isSearching, setIsSearching]   = useState(false);
+  const searchRef   = useRef(null);
   const debounceRef = useRef(null);
 
   // ── Cinema Mode ──
-  const [cinemaMode, setCinemaMode] = useState(false);
+  const [cinemaMode, setCinemaMode]     = useState(false);
   const [ambientColor, setAmbientColor] = useState("201,162,39");
 
-  // ── NEW: Mood board — show when no messages ──
-  const showMoodBoard = messages.length === 0 && !loading;
-
-  // ── NEW: track which tile was clicked for press animation ──
+  // ── Mood board ──
+  const showMoodBoard  = messages.length === 0 && !loading;
   const [activeMoodIdx, setActiveMoodIdx] = useState(null);
 
-  /* ── NEW: fire a mood query ── */
-  const fireMood = async (mood, idx) => {
-    setActiveMoodIdx(idx);
-    await new Promise((r) => setTimeout(r, 180));
-    setActiveMoodIdx(null);
-    sendMessage(mood.query);
+  /* ══════════════════════════════════════════════════════════
+     NEW: DOUBLE FEATURE STATE
+  ══════════════════════════════════════════════════════════ */
+  const [dfMovieA, setDfMovieA]         = useState("");
+  const [dfMovieB, setDfMovieB]         = useState("");
+  const [dfSuggestionsA, setDfSuggestionsA] = useState([]);
+  const [dfSuggestionsB, setDfSuggestionsB] = useState([]);
+  const [dfShowA, setDfShowA]           = useState(false);
+  const [dfShowB, setDfShowB]           = useState(false);
+  const [dfActiveA, setDfActiveA]       = useState(-1);
+  const [dfActiveB, setDfActiveB]       = useState(-1);
+  const [dfLoading, setDfLoading]       = useState(false);
+  const [dfResult, setDfResult]         = useState(null);
+  const [dfError, setDfError]           = useState("");
+  const dfDebounceA = useRef(null);
+  const dfDebounceB = useRef(null);
+  const dfWrapA     = useRef(null);
+  const dfWrapB     = useRef(null);
+
+  /* ── NEW: Debounced autocomplete for Double Feature inputs ── */
+  const makeDfDebounce = (value, setter, showSetter, activeSetter, debounceTimer) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (value.trim().length < 2) { setter([]); showSetter(false); return; }
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const res  = await fetch(`http://localhost:5000/api/movies/search?query=${encodeURIComponent(value.trim())}`);
+        const data = await res.json();
+        const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 5);
+        setter(results); showSetter(results.length > 0); activeSetter(-1);
+      } catch { setter([]); showSetter(false); }
+    }, 350);
   };
 
-  /* ══════════════════════════════════════════════════════════
-     Cinema: extract dominant color
-  ══════════════════════════════════════════════════════════ */
-  const extractDominantColor = (imageUrl) => {
-    return new Promise((resolve) => {
-      if (!imageUrl) { resolve("201,162,39"); return; }
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          const SIZE = 80;
-          canvas.width = SIZE; canvas.height = SIZE;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, SIZE, SIZE);
-          const data = ctx.getImageData(SIZE * 0.2, SIZE * 0.3, SIZE * 0.6, SIZE * 0.5).data;
-          let r = 0, g = 0, b = 0, count = 0;
-          for (let i = 0; i < data.length; i += 16) {
-            const pr = data[i], pg = data[i + 1], pb = data[i + 2];
-            const brightness = (pr + pg + pb) / 3;
-            const max = Math.max(pr, pg, pb), min = Math.min(pr, pg, pb);
-            const saturation = max === 0 ? 0 : (max - min) / max;
-            if (brightness > 20 && brightness < 240 && saturation > 0.15) { r += pr; g += pg; b += pb; count++; }
-          }
-          if (count === 0) { resolve("201,162,39"); return; }
-          r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
-          const boost = 1.35, avg = (r + g + b) / 3;
-          r = Math.min(255, Math.round(avg + (r - avg) * boost));
-          g = Math.min(255, Math.round(avg + (g - avg) * boost));
-          b = Math.min(255, Math.round(avg + (b - avg) * boost));
-          resolve(`${r},${g},${b}`);
-        } catch { resolve("201,162,39"); }
-      };
-      img.onerror = () => resolve("201,162,39");
-      img.src = imageUrl;
-    });
+  useEffect(() => {
+    makeDfDebounce(dfMovieA, setDfSuggestionsA, setDfShowA, setDfActiveA, dfDebounceA);
+    return () => clearTimeout(dfDebounceA.current);
+  }, [dfMovieA]);
+
+  useEffect(() => {
+    makeDfDebounce(dfMovieB, setDfSuggestionsB, setDfShowB, setDfActiveB, dfDebounceB);
+    return () => clearTimeout(dfDebounceB.current);
+  }, [dfMovieB]);
+
+  /* ── NEW: Close df dropdowns on outside click ── */
+  useEffect(() => {
+    const handler = (e) => {
+      if (dfWrapA.current && !dfWrapA.current.contains(e.target)) { setDfShowA(false); setDfActiveA(-1); }
+      if (dfWrapB.current && !dfWrapB.current.contains(e.target)) { setDfShowB(false); setDfActiveB(-1); }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ── NEW: Fire Double Feature request ── */
+  const runDoubleFeature = async () => {
+    if (!dfMovieA.trim() || !dfMovieB.trim() || dfLoading) return;
+    setDfLoading(true); setDfResult(null); setDfError("");
+    try {
+      const res  = await fetch("http://localhost:5000/api/chat/double-feature", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ movieA: dfMovieA.trim(), movieB: dfMovieB.trim() }),
+      });
+      const data = await res.json();
+      if (data.error) { setDfError(data.error); return; }
+      setDfResult(data);
+    } catch { setDfError("Something went wrong. Please try again."); }
+    finally { setDfLoading(false); }
   };
+
+  /* ── NEW: Reset Double Feature ── */
+  const resetDf = () => { setDfMovieA(""); setDfMovieB(""); setDfResult(null); setDfError(""); };
+
+  /* ── Helpers for df keyboard nav ── */
+  const dfKeyDown = (e, suggestions, activeIdx, setActive, showSetter, valueSetter, showState) => {
+    if (!showState) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive(i => Math.min(i + 1, suggestions.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive(i => Math.max(i - 1, -1)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIdx >= 0 && suggestions[activeIdx]) { valueSetter(suggestions[activeIdx].title); showSetter(false); setActive(-1); }
+    } else if (e.key === "Escape") { showSetter(false); setActive(-1); }
+  };
+
+  /* ── Cinema ── */
+  const extractDominantColor = (imageUrl) => new Promise((resolve) => {
+    if (!imageUrl) { resolve("201,162,39"); return; }
+    const img = new Image(); img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas"); const SIZE = 80;
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, SIZE, SIZE);
+        const data = ctx.getImageData(SIZE * 0.2, SIZE * 0.3, SIZE * 0.6, SIZE * 0.5).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 16) {
+          const pr = data[i], pg = data[i+1], pb = data[i+2];
+          const brightness = (pr+pg+pb)/3, max = Math.max(pr,pg,pb), min = Math.min(pr,pg,pb);
+          const sat = max === 0 ? 0 : (max-min)/max;
+          if (brightness > 20 && brightness < 240 && sat > 0.15) { r+=pr; g+=pg; b+=pb; count++; }
+        }
+        if (count === 0) { resolve("201,162,39"); return; }
+        r=Math.round(r/count); g=Math.round(g/count); b=Math.round(b/count);
+        const boost=1.35, avg=(r+g+b)/3;
+        r=Math.min(255,Math.round(avg+(r-avg)*boost)); g=Math.min(255,Math.round(avg+(g-avg)*boost)); b=Math.min(255,Math.round(avg+(b-avg)*boost));
+        resolve(`${r},${g},${b}`);
+      } catch { resolve("201,162,39"); }
+    };
+    img.onerror = () => resolve("201,162,39");
+    img.src = imageUrl;
+  });
 
   const enterCinema = async () => {
-    if (selectedMovie?.poster) {
-      const color = await extractDominantColor(selectedMovie.poster);
-      setAmbientColor(color);
-    }
-    setCinemaMode(true);
-    document.body.style.overflow = "hidden";
+    if (selectedMovie?.poster) { const color = await extractDominantColor(selectedMovie.poster); setAmbientColor(color); }
+    setCinemaMode(true); document.body.style.overflow = "hidden";
   };
+  const exitCinema  = () => { setCinemaMode(false); document.body.style.overflow = ""; };
+  const closeModal  = () => { exitCinema(); setSelectedMovie(null); setInsight(""); };
 
-  const exitCinema = () => { setCinemaMode(false); document.body.style.overflow = ""; };
-  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); };
-
-  /* ── Autocomplete ── */
+  /* ── Main autocomplete ── */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = message.trim();
@@ -190,9 +248,9 @@ export default function ChatPage() {
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/movies/search?query=${encodeURIComponent(trimmed)}`);
+        const res  = await fetch(`http://localhost:5000/api/movies/search?query=${encodeURIComponent(trimmed)}`);
         const data = await res.json();
-        const results = (Array.isArray(data) ? data : []).filter((m) => m.poster_path).slice(0, 6);
+        const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 6);
         setSuggestions(results); setShowSuggestions(results.length > 0); setActiveIndex(-1);
       } catch { setSuggestions([]); setShowSuggestions(false); }
       finally { setIsSearching(false); }
@@ -210,8 +268,8 @@ export default function ChatPage() {
 
   const handleKeyDown = (e) => {
     if (!showSuggestions) { if (e.key === "Enter" && !loading) sendMessage(); return; }
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, -1)); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex(i => Math.min(i+1, suggestions.length-1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex(i => Math.max(i-1, -1)); }
     else if (e.key === "Enter") {
       e.preventDefault();
       if (activeIndex >= 0 && suggestions[activeIndex]) selectSuggestion(suggestions[activeIndex]);
@@ -221,7 +279,15 @@ export default function ChatPage() {
 
   const selectSuggestion = (movie) => { setShowSuggestions(false); setActiveIndex(-1); sendMessage(movie.title); };
 
-  /* ── Row scroll ── */
+  /* ── Mood board ── */
+  const fireMood = async (mood, idx) => {
+    setActiveMoodIdx(idx);
+    await new Promise(r => setTimeout(r, 180));
+    setActiveMoodIdx(null);
+    sendMessage(mood.query);
+  };
+
+  /* ── Trending / scroll ── */
   const scrollRow = (dir) => {
     if (!rowRef.current) return;
     const { scrollLeft, clientWidth } = rowRef.current;
@@ -240,34 +306,29 @@ export default function ChatPage() {
   }, [isHovered, trending]);
 
   useEffect(() => {
-    const go = (id) => {
-      const el = document.getElementById(id);
-      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: "smooth" });
-    };
+    const go = (id) => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: "smooth" }); };
     if (loading) go("typing-dots");
     if (!loading && messages.length > 0) setTimeout(() => go(`msg-${messages.length - 1}`), 160);
   }, [loading, messages.length]);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/movies/trending")
-      .then((r) => r.json())
-      .then((d) => { setTrending(d.movies || []); setTrendingLoading(false); })
+      .then(r => r.json())
+      .then(d => { setTrending(d.movies || []); setTrendingLoading(false); })
       .catch(() => setTrendingLoading(false));
   }, []);
 
   const typeText = async (text, setter) => {
     setter(""); let cur = "";
-    for (const w of text.split(" ")) { cur += w + " "; setter(cur); await new Promise((r) => setTimeout(r, 28)); }
+    for (const w of text.split(" ")) { cur += w + " "; setter(cur); await new Promise(r => setTimeout(r, 28)); }
   };
 
   const fetchInsight = async (title) => {
     setInsight(""); setAnimatedInsight(""); setInsightLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/chat/movie-insight", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }),
-      });
+      const res  = await fetch("http://localhost:5000/api/chat/movie-insight", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
       const data = await res.json();
-      const txt = data.insight || data.message || "No AI insight available.";
+      const txt  = data.insight || data.message || "No AI insight available.";
       await typeText(txt, setAnimatedInsight); setInsight(txt);
     } catch { setInsight("Failed to generate insight."); }
     finally { setInsightLoading(false); }
@@ -277,25 +338,22 @@ export default function ChatPage() {
     const cur = (overrideText !== undefined ? overrideText : message).trim();
     if (!cur || loading) return;
     setMessage(""); setShowSuggestions(false);
-    setMessages((prev) => [...prev, { role: "user", text: cur }, { role: "typing" }]);
+    setMessages(prev => [...prev, { role: "user", text: cur }, { role: "typing" }]);
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 50));
     try {
-      const res = await fetch("http://localhost:5000/api/chat/movie-chat", {
-        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
-        body: JSON.stringify({ message: cur }),
-      });
+      const res  = await fetch("http://localhost:5000/api/chat/movie-chat", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
       const data = await res.json();
       const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
-      setMessages((prev) => [...prev.filter((m) => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
+      setMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
       let built = "";
       for (const w of reply.split(" ")) {
         built += w + " ";
-        setMessages((prev) => { const u = [...prev]; u[u.length - 1] = { ...u[u.length - 1], text: built }; return u; });
-        await new Promise((r) => setTimeout(r, 28));
+        setMessages(prev => { const u = [...prev]; u[u.length-1] = { ...u[u.length-1], text: built }; return u; });
+        await new Promise(r => setTimeout(r, 28));
       }
     } catch {
-      setMessages((prev) => [...prev.filter((m) => m.role !== "typing"), { role: "ai", text: "Something went wrong. Please try again.", movies: [] }]);
+      setMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "Something went wrong. Please try again.", movies: [] }]);
     } finally { setLoading(false); }
   };
 
@@ -313,7 +371,7 @@ export default function ChatPage() {
       <div style={{ minWidth: 158, width: 158, flexShrink: 0 }}>
         <div className="skeleton" style={{ width: 158, height: 238, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }} />
         <div className="skeleton" style={{ marginTop: 10, height: 13, borderRadius: 6, width: "80%" }} />
-        <div className="skeleton" style={{ marginTop: 6, height: 11, borderRadius: 6, width: "40%" }} />
+        <div className="skeleton" style={{ marginTop: 6,  height: 11, borderRadius: 6, width: "40%" }} />
       </div>
     ) : (
       <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", background: "#111" }}>
@@ -370,6 +428,22 @@ export default function ChatPage() {
       </div>
     );
   };
+
+  /* ── NEW: Reusable mini autocomplete dropdown for Double Feature ── */
+  const DfDropdown = ({ suggestions, activeIdx, onSelect, onHover }) => (
+    <div className="df-dropdown">
+      {suggestions.map((movie, i) => (
+        <div key={movie.id} className={`df-drop-item${i === activeIdx ? " active" : ""}`}
+          onMouseDown={() => onSelect(movie)} onMouseEnter={() => onHover(i)}>
+          <img src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} alt={movie.title} className="df-drop-poster" />
+          <div style={{ overflow: "hidden" }}>
+            <p className="df-drop-title">{movie.title}</p>
+            <p className="df-drop-meta">★ {Number(movie.vote_average).toFixed(1)}{movie.release_date && ` · ${movie.release_date.slice(0, 4)}`}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   /* ══════════════════════════════════════════════════════════
      RENDER
@@ -431,10 +505,10 @@ export default function ChatPage() {
         .send-btn:active:not(:disabled) { transform: translateY(0); }
         .send-btn:disabled { opacity: 0.52; cursor: not-allowed; }
 
-        /* ═══ AUTOCOMPLETE ═══ */
-        .autocomplete-dropdown { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22); border-radius: 14px; overflow: hidden; z-index: 999; box-shadow: 0 24px 60px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.03); animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        /* ═══ AUTOCOMPLETE (main) ═══ */
+        .autocomplete-dropdown { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22); border-radius: 14px; overflow: hidden; z-index: 999; box-shadow: 0 24px 60px rgba(0,0,0,0.88); animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes dropIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        .auto-item { display: flex; align-items: center; gap: 13px; padding: 10px 15px; cursor: pointer; transition: background 0.15s ease; border-left: 2px solid transparent; }
+        .auto-item { display: flex; align-items: center; gap: 13px; padding: 10px 15px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
         .auto-item:hover, .auto-item.active { background: rgba(201,162,39,0.07); border-left-color: var(--gold); }
         .auto-item + .auto-item { border-top: 1px solid rgba(255,255,255,0.04); }
         .auto-poster { width: 34px; height: 51px; border-radius: 5px; object-fit: cover; flex-shrink: 0; background: #1a1a1a; }
@@ -453,91 +527,134 @@ export default function ChatPage() {
         .section-bar { width: 4px; height: 24px; flex-shrink: 0; background: linear-gradient(180deg, var(--gold-lt), var(--gold-dk)); border-radius: 2px; }
         .section-title { font-family: 'Playfair Display', serif; font-size: 23px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
 
-        /* ═══════════════════════════════════════
-           NEW: MOOD BOARD
-        ═══════════════════════════════════════ */
-        .moodboard-wrap {
-          margin-bottom: 60px;
-          animation: fadeUp 0.55s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
-        .moodboard-eyebrow {
-          font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
-          text-transform: uppercase; color: var(--gold); opacity: 0.7;
-          margin-bottom: 10px;
-        }
-        .moodboard-heading {
-          font-family: 'Playfair Display', serif;
-          font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.75);
-          margin-bottom: 24px; letter-spacing: -0.01em;
-        }
-        .mood-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 14px;
-        }
-        .mood-tile {
-          position: relative; overflow: hidden;
-          border-radius: 16px; padding: 22px 20px 20px;
-          cursor: pointer; border: 1px solid;
-          transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-                      box-shadow 0.32s ease,
-                      border-color 0.32s ease;
-          display: flex; flex-direction: column; gap: 8px;
-          min-height: 120px;
-        }
-        .mood-tile:hover {
-          transform: translateY(-6px) scale(1.02);
-        }
-        .mood-tile.pressed {
-          transform: scale(0.95);
-          transition: transform 0.12s ease;
-        }
-        /* shimmer sweep on hover */
-        .mood-tile::after {
-          content: '';
-          position: absolute; inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%);
-          opacity: 0;
-          transition: opacity 0.3s ease;
-          pointer-events: none;
-          border-radius: 16px;
-        }
+        /* ═══ MOOD BOARD ═══ */
+        .moodboard-wrap { margin-bottom: 60px; animation: fadeUp 0.55s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .moodboard-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); opacity: 0.7; margin-bottom: 10px; }
+        .moodboard-heading { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.75); margin-bottom: 24px; }
+        .mood-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .mood-tile { position: relative; overflow: hidden; border-radius: 16px; padding: 22px 20px 20px; cursor: pointer; border: 1px solid; transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.32s ease; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+        .mood-tile:hover { transform: translateY(-6px) scale(1.02); }
+        .mood-tile.pressed { transform: scale(0.95); transition: transform 0.12s ease; }
+        .mood-tile::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%); opacity: 0; transition: opacity 0.3s ease; pointer-events: none; border-radius: 16px; }
         .mood-tile:hover::after { opacity: 1; }
+        .mood-icon { font-size: 26px; line-height: 1; }
+        .mood-label { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9); }
+        .mood-desc { font-size: 11px; color: rgba(255,255,255,0.38); }
+        .mood-arrow { position: absolute; bottom: 14px; right: 16px; font-size: 16px; color: rgba(255,255,255,0.25); transform: translateX(-4px); transition: transform 0.28s ease, color 0.28s ease, opacity 0.28s ease; opacity: 0; }
+        .mood-tile:hover .mood-arrow { transform: translateX(0); color: rgba(255,255,255,0.55); opacity: 1; }
 
-        .mood-icon {
-          font-size: 26px; line-height: 1;
-          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+        /* ═══════════════════════════════════════════
+           NEW: DOUBLE FEATURE PANEL
+        ═══════════════════════════════════════════ */
+        .df-wrap {
+          margin-bottom: 60px;
+          background: linear-gradient(160deg, #0e0b00, #080808);
+          border: 1px solid rgba(201,162,39,0.14);
+          border-radius: 20px;
+          padding: 32px 32px 28px;
+          animation: fadeUp 0.55s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+          position: relative; overflow: hidden;
         }
-        .mood-label {
-          font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.9);
-          letter-spacing: 0.01em; line-height: 1.2;
+        /* subtle top accent line */
+        .df-wrap::before {
+          content: '';
+          position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(201,162,39,0.35), transparent);
         }
-        .mood-desc {
-          font-size: 11px; color: rgba(255,255,255,0.38);
-          font-weight: 400; letter-spacing: 0.02em;
-          line-height: 1.3;
-        }
-        /* arrow that appears on hover */
-        .mood-arrow {
-          position: absolute; bottom: 14px; right: 16px;
-          font-size: 16px; color: rgba(255,255,255,0.25);
-          transform: translateX(-4px);
-          transition: transform 0.28s ease, color 0.28s ease, opacity 0.28s ease;
-          opacity: 0;
-        }
-        .mood-tile:hover .mood-arrow {
-          transform: translateX(0);
-          color: rgba(255,255,255,0.55);
-          opacity: 1;
-        }
+        .df-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); opacity: 0.7; margin-bottom: 8px; }
+        .df-heading { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.82); margin-bottom: 6px; }
+        .df-subhead { font-size: 13px; color: var(--text-muted); font-weight: 300; margin-bottom: 26px; }
 
-        /* moodboard exit animation when messages appear */
-        .moodboard-exit {
-          animation: moodExit 0.38s cubic-bezier(0.4, 0, 1, 1) both;
+        .df-inputs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .df-input-wrap { position: relative; }
+        .df-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+        .df-input {
+          width: 100%; padding: 13px 16px; border-radius: 10px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.04); color: white;
+          font-size: 14px; font-family: 'DM Sans', sans-serif;
+          transition: border-color 0.25s, box-shadow 0.25s;
         }
-        @keyframes moodExit {
-          to { opacity: 0; transform: translateY(-16px) scale(0.97); }
+        .df-input::placeholder { color: rgba(255,255,255,0.2); }
+        .df-input:focus { outline: none; border-color: rgba(201,162,39,0.45); box-shadow: 0 0 0 3px rgba(201,162,39,0.06); }
+
+        .df-connector {
+          display: flex; flex-direction: column; align-items: center; gap: 4px;
+          padding-top: 22px;
         }
+        .df-connector-text { font-size: 10px; font-weight: 700; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
+        .df-connector-icon { font-size: 20px; color: rgba(201,162,39,0.4); }
+
+        /* df mini autocomplete */
+        .df-dropdown {
+          position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+          background: #0f0f0f; border: 1px solid rgba(201,162,39,0.2);
+          border-radius: 12px; overflow: hidden; z-index: 500;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+          animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .df-drop-item { display: flex; align-items: center; gap: 10px; padding: 9px 13px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
+        .df-drop-item:hover, .df-drop-item.active { background: rgba(201,162,39,0.07); border-left-color: var(--gold); }
+        .df-drop-item + .df-drop-item { border-top: 1px solid rgba(255,255,255,0.04); }
+        .df-drop-poster { width: 28px; height: 42px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+        .df-drop-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .df-drop-meta { font-size: 11px; color: var(--gold); opacity: 0.75; }
+
+        .df-actions { display: flex; align-items: center; gap: 12px; }
+        .df-btn {
+          padding: 12px 28px; border-radius: 10px;
+          border: 1px solid rgba(201,162,39,0.45);
+          background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%);
+          color: #0a0800; font-weight: 700; font-size: 13px;
+          font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em;
+          text-transform: uppercase; cursor: pointer;
+          transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s;
+          white-space: nowrap;
+        }
+        .df-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(201,162,39,0.38); }
+        .df-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .df-reset-btn {
+          padding: 12px 18px; border-radius: 10px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: transparent; color: rgba(255,255,255,0.4);
+          font-size: 12px; font-family: 'DM Sans', sans-serif;
+          cursor: pointer; transition: color 0.2s, border-color 0.2s;
+        }
+        .df-reset-btn:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+
+        /* ── df loading dots ── */
+        .df-loading { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+        .df-loading-text { font-size: 13px; color: var(--text-muted); font-style: italic; }
+
+        /* ── df result card ── */
+        .df-result {
+          margin-top: 24px;
+          background: rgba(255,255,255,0.025);
+          border: 1px solid rgba(201,162,39,0.18);
+          border-radius: 16px; overflow: hidden;
+          display: grid; grid-template-columns: auto 1fr;
+          animation: fadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .df-result-poster {
+          width: 240px; flex-shrink: 0;
+          cursor: pointer; position: relative; overflow: hidden;
+        }
+        .df-result-poster img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease; }
+        .df-result-poster:hover img { transform: scale(1.05); }
+        .df-result-body { padding: 24px 26px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+        .df-result-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); opacity: 0.7; }
+        .df-result-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: #fff; line-height: 1.2; cursor: pointer; }
+        .df-result-title:hover { color: var(--gold-lt); }
+        .df-result-meta { display: flex; align-items: center; gap: 12px; }
+        .df-result-rating { color: var(--gold); font-weight: 700; font-size: 13px; }
+        .df-result-year { color: var(--text-muted); font-size: 12px; }
+        .df-result-reason {
+          font-size: 14px; line-height: 1.75; color: rgba(255,255,255,0.58);
+          font-weight: 300; font-style: italic;
+          border-left: 2px solid rgba(201,162,39,0.3);
+          padding-left: 14px;
+        }
+        .df-error { padding: 12px 16px; background: rgba(220,60,60,0.08); border: 1px solid rgba(220,60,60,0.18); border-radius: 10px; color: rgba(255,100,100,0.8); font-size: 13px; margin-top: 16px; }
 
         /* ═══ TRENDING ═══ */
         .trending-wrap { margin-bottom: 66px; }
@@ -585,9 +702,9 @@ export default function ChatPage() {
         /* ═══ MESSAGES ═══ */
         .msg-enter { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
         .user-row { text-align: right; margin-bottom: 20px; scroll-margin-top: 130px; }
-        .user-bubble { display: inline-block; background: linear-gradient(135deg, #1a1200, #271d00); border: 1px solid rgba(201,162,39,0.28); color: var(--gold-lt); padding: 11px 18px; border-radius: 18px 18px 4px 18px; font-size: 15px; font-weight: 500; letter-spacing: 0.01em; box-shadow: 0 4px 18px rgba(201,162,39,0.1); }
+        .user-bubble { display: inline-block; background: linear-gradient(135deg, #1a1200, #271d00); border: 1px solid rgba(201,162,39,0.28); color: var(--gold-lt); padding: 11px 18px; border-radius: 18px 18px 4px 18px; font-size: 15px; font-weight: 500; box-shadow: 0 4px 18px rgba(201,162,39,0.1); }
         .typing-row { margin-bottom: 20px; scroll-margin-top: 130px; }
-        .typing-bubble { display: inline-block; background: rgba(16,12,0,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(201,162,39,0.1); padding: 16px 22px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .typing-bubble { display: inline-block; background: rgba(16,12,0,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(201,162,39,0.1); padding: 16px 22px; border-radius: 14px; }
         .typing-dots { display: flex; gap: 6px; align-items: center; height: 14px; }
         .typing-dots span { width: 7px; height: 7px; background: var(--gold); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
         .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
@@ -607,7 +724,7 @@ export default function ChatPage() {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .ambient-glow { position: absolute; width: 900px; height: 900px; border-radius: 50%; pointer-events: none; opacity: 0; transform: scale(0.6); transition: opacity 0.9s ease, transform 0.9s ease; filter: blur(120px); z-index: 0; }
         .modal-overlay.cinema-active .ambient-glow { opacity: 0.22; transform: scale(1); }
-        .modal-content { position: relative; z-index: 1; background: linear-gradient(160deg, #111008, #0a0a0a); border: 1px solid rgba(201,162,39,0.18); border-radius: var(--radius-modal); padding: 36px; max-width: 840px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 52px 100px rgba(0,0,0,0.88), 0 0 0 1px rgba(255,255,255,0.04); animation: modalIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; transition: max-width 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease, border-color 0.55s ease; }
+        .modal-content { position: relative; z-index: 1; background: linear-gradient(160deg, #111008, #0a0a0a); border: 1px solid rgba(201,162,39,0.18); border-radius: var(--radius-modal); padding: 36px; max-width: 840px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 52px 100px rgba(0,0,0,0.88); animation: modalIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; transition: max-width 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease, border-color 0.55s ease; }
         .modal-overlay.cinema-active .modal-content { max-width: 1060px; border-color: rgba(var(--ambient-rgb), 0.3); box-shadow: 0 0 0 1px rgba(var(--ambient-rgb), 0.15), 0 60px 120px rgba(0,0,0,0.95), 0 0 80px rgba(var(--ambient-rgb), 0.08); }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.9) translateY(24px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         .modal-close { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, color 0.2s, transform 0.3s ease; }
@@ -637,6 +754,8 @@ export default function ChatPage() {
 
         @media (max-width: 900px) {
           .mood-grid { grid-template-columns: repeat(2, 1fr); }
+          .df-inputs { grid-template-columns: 1fr; }
+          .df-connector { flex-direction: row; padding-top: 0; }
         }
         @media (max-width: 768px) {
           .hero-inner, .searchbar-inner, .main { padding-left: 20px; padding-right: 20px; }
@@ -645,6 +764,9 @@ export default function ChatPage() {
           .typing-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
           .cinema-btn { display: none; }
           .mood-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .df-wrap { padding: 22px 18px; }
+          .df-result { grid-template-columns: 1fr; }
+          .df-result-poster { width: 100%; height: 180px; }
         }
       `}</style>
 
@@ -669,12 +791,8 @@ export default function ChatPage() {
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </span>
-            <input
-              type="text" className="search-input"
-              placeholder="Ask for movies, genres, moods…"
-              value={message} onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown} autoComplete="off"
-            />
+            <input type="text" className="search-input" placeholder="Ask for movies, genres, moods…"
+              value={message} onChange={e => setMessage(e.target.value)} onKeyDown={handleKeyDown} autoComplete="off" />
             {showSuggestions && suggestions.length > 0 && (
               <div className="autocomplete-dropdown">
                 {suggestions.map((movie, i) => (
@@ -685,7 +803,7 @@ export default function ChatPage() {
                       : <div className="auto-poster-placeholder">🎬</div>}
                     <div style={{ overflow: "hidden" }}>
                       <p className="auto-title">{movie.title}</p>
-                      <p className="auto-meta">★ {Number(movie.vote_average).toFixed(1)}{movie.release_date && ` · ${movie.release_date.slice(0, 4)}`}</p>
+                      <p className="auto-meta">★ {Number(movie.vote_average).toFixed(1)}{movie.release_date && ` · ${movie.release_date.slice(0,4)}`}</p>
                     </div>
                   </div>
                 ))}
@@ -706,9 +824,7 @@ export default function ChatPage() {
       {/* ═══════════ MAIN ═══════════ */}
       <main className="main">
 
-        {/* ══════════════════════════════════════════
-            NEW: MOOD BOARD — only when no messages
-        ══════════════════════════════════════════ */}
+        {/* ── MOOD BOARD ── */}
         {showMoodBoard && (
           <div className="moodboard-wrap">
             <p className="moodboard-eyebrow">◈ Pick a vibe</p>
@@ -742,13 +858,110 @@ export default function ChatPage() {
           </div>
         )}
 
+        {/* ══════════════════════════════════════════════════
+            NEW: DOUBLE FEATURE PANEL
+            Only visible on empty state, same as mood board
+        ══════════════════════════════════════════════════ */}
+        {showMoodBoard && (
+          <div className="df-wrap">
+            <p className="df-eyebrow">◈ AI matchmaking</p>
+            <p className="df-heading">Find your perfect bridge film</p>
+            <p className="df-subhead">Love two movies? Tell us — we'll find the one film that sits at the intersection of both.</p>
+
+            <div className="df-inputs">
+              {/* ── Movie A ── */}
+              <div className="df-input-wrap" ref={dfWrapA}>
+                <p className="df-label">First film you love</p>
+                <input
+                  className="df-input" placeholder="e.g. The Dark Knight"
+                  value={dfMovieA}
+                  onChange={e => setDfMovieA(e.target.value)}
+                  onKeyDown={e => dfKeyDown(e, dfSuggestionsA, dfActiveA, setDfActiveA, setDfShowA, setDfMovieA, dfShowA)}
+                  autoComplete="off"
+                />
+                {dfShowA && dfSuggestionsA.length > 0 && (
+                  <DfDropdown suggestions={dfSuggestionsA} activeIdx={dfActiveA}
+                    onSelect={m => { setDfMovieA(m.title); setDfShowA(false); setDfActiveA(-1); }}
+                    onHover={setDfActiveA} />
+                )}
+              </div>
+
+              {/* ── connector ── */}
+              <div className="df-connector">
+                <span className="df-connector-icon">✦</span>
+                <span className="df-connector-text">and</span>
+              </div>
+
+              {/* ── Movie B ── */}
+              <div className="df-input-wrap" ref={dfWrapB}>
+                <p className="df-label">Second film you love</p>
+                <input
+                  className="df-input" placeholder="e.g. Parasite"
+                  value={dfMovieB}
+                  onChange={e => setDfMovieB(e.target.value)}
+                  onKeyDown={e => dfKeyDown(e, dfSuggestionsB, dfActiveB, setDfActiveB, setDfShowB, setDfMovieB, dfShowB)}
+                  autoComplete="off"
+                />
+                {dfShowB && dfSuggestionsB.length > 0 && (
+                  <DfDropdown suggestions={dfSuggestionsB} activeIdx={dfActiveB}
+                    onSelect={m => { setDfMovieB(m.title); setDfShowB(false); setDfActiveB(-1); }}
+                    onHover={setDfActiveB} />
+                )}
+              </div>
+            </div>
+
+            {/* ── Actions ── */}
+            <div className="df-actions">
+              <button className="df-btn"
+                disabled={!dfMovieA.trim() || !dfMovieB.trim() || dfLoading}
+                onClick={runDoubleFeature}>
+                {dfLoading ? "Finding…" : "Find My Bridge Film →"}
+              </button>
+              {(dfResult || dfError || dfMovieA || dfMovieB) && (
+                <button className="df-reset-btn" onClick={resetDf}>Reset</button>
+              )}
+            </div>
+
+            {/* ── Loading ── */}
+            {dfLoading && (
+              <div className="df-loading" style={{ marginTop: 20 }}>
+                <div className="typing-dots"><span /><span /><span /></div>
+                <span className="df-loading-text">Analyzing the DNA of both films…</span>
+              </div>
+            )}
+
+            {/* ── Error ── */}
+            {dfError && <div className="df-error">⚠ {dfError}</div>}
+
+            {/* ── Result ── */}
+            {dfResult && !dfLoading && (
+              <div className="df-result">
+                <div className="df-result-poster"
+                  onClick={() => { setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setCinemaMode(false); fetchInsight(dfResult.movie.title); }}>
+                  <img src={dfResult.movie.poster} alt={dfResult.movie.title} />
+                </div>
+                <div className="df-result-body">
+                  <p className="df-result-eyebrow">✦ Your bridge film</p>
+                  <p className="df-result-title"
+                    onClick={() => { setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setCinemaMode(false); fetchInsight(dfResult.movie.title); }}>
+                    {dfResult.movie.title}
+                  </p>
+                  <div className="df-result-meta">
+                    <span className="df-result-rating">★ {Number(dfResult.movie.rating).toFixed(1)}</span>
+                    <span className="df-result-year">{dfResult.movie.releaseDate?.slice(0, 4)}</span>
+                  </div>
+                  <p className="df-result-reason">{dfResult.reason}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── TRENDING ── */}
         <div className="trending-wrap">
           <div className="section-label">
             <div className="section-bar" />
-            {trendingLoading
-              ? <div className="skeleton skeleton-section-title" />
-              : <h2 className="section-title">Trending Now</h2>}
+            {trendingLoading ? <div className="skeleton skeleton-section-title" /> : <h2 className="section-title">Trending Now</h2>}
           </div>
           {trendingLoading ? (
             <div className="movie-row skeleton-row-wrap" style={{ paddingTop: 14, paddingBottom: 22 }}>
@@ -767,7 +980,7 @@ export default function ChatPage() {
         </div>
 
         {/* ── DIVIDER ── */}
-        {!trendingLoading && messages.some((m) => m.role !== "typing") && <div className="section-divider" />}
+        {!trendingLoading && messages.some(m => m.role !== "typing") && <div className="section-divider" />}
 
         {/* ── MESSAGES ── */}
         {messages.map((msg, i) => {
@@ -778,9 +991,7 @@ export default function ChatPage() {
           );
           if (msg.role === "typing") return (
             <div key={i} id="typing-dots" className="typing-row msg-enter">
-              <div className="typing-bubble">
-                <div className="typing-dots"><span /><span /><span /></div>
-              </div>
+              <div className="typing-bubble"><div className="typing-dots"><span /><span /><span /></div></div>
               <div className="typing-skeleton-grid skeleton-grid-wrap">
                 {Array.from({ length: 4 }).map((_, j) => <SkeletonCard key={`sk-grid-${j}`} variant="grid" />)}
               </div>
@@ -806,11 +1017,9 @@ export default function ChatPage() {
 
       {/* ═══════════ MODAL ═══════════ */}
       {selectedMovie && (
-        <div
-          className={`modal-overlay${cinemaMode ? " cinema-active" : ""}`}
+        <div className={`modal-overlay${cinemaMode ? " cinema-active" : ""}`}
           style={{ "--ambient-rgb": ambientColor }}
-          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
-        >
+          onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className="ambient-glow" style={{ background: `rgb(${ambientColor})` }} />
           <div className="modal-content" style={{ "--ambient-rgb": ambientColor }}>
             {selectedMovie.trailer && (
@@ -832,8 +1041,7 @@ export default function ChatPage() {
                 <iframe width="100%" height={cinemaMode ? 540 : 400}
                   src={`https://www.youtube.com/embed/${selectedMovie.trailer}`}
                   title="Trailer" frameBorder="0" allowFullScreen
-                  style={{ transition: "height 0.55s cubic-bezier(0.16, 1, 0.3, 1)", display: "block" }}
-                />
+                  style={{ transition: "height 0.55s cubic-bezier(0.16, 1, 0.3, 1)", display: "block" }} />
               </div>
             )}
             {selectedMovie.overview && <p className="modal-overview">{selectedMovie.overview}</p>}
