@@ -97,7 +97,7 @@ export default function ChatPage() {
 
   const fetchLists = async (token) => {
     try {
-      const res  = await fetch("http://localhost:5000/api/movies/lists", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/lists`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -110,7 +110,7 @@ export default function ChatPage() {
     if (!authEmail || !authPassword) { setAuthError("Please fill in all fields"); return; }
     setAuthLoading(true); setAuthError("");
     try {
-      const res  = await fetch("http://localhost:5000/api/auth/login", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: authEmail, password: authPassword }),
       });
@@ -129,7 +129,7 @@ export default function ChatPage() {
     if (!authName || !authEmail || !authPassword) { setAuthError("Please fill in all fields"); return; }
     setAuthLoading(true); setAuthError("");
     try {
-      const res  = await fetch("http://localhost:5000/api/auth/register", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: authName, email: authEmail, password: authPassword }),
       });
@@ -152,7 +152,7 @@ export default function ChatPage() {
   const toggleWatchlist = async (movie) => {
     if (!authToken) { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); return; }
     try {
-      const res  = await fetch("http://localhost:5000/api/movies/watchlist", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/watchlist`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ movie }),
@@ -165,7 +165,7 @@ export default function ChatPage() {
   const toggleFavorite = async (movie) => {
     if (!authToken) { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); return; }
     try {
-      const res  = await fetch("http://localhost:5000/api/movies/favorites", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/favorites`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ movie }),
@@ -206,7 +206,7 @@ export default function ChatPage() {
     setFloatMessages(prev => [...prev, { role: "user", text: cur }, { role: "typing" }]);
     setFloatLoading(true);
     try {
-      const res  = await fetch("http://localhost:5000/api/chat/movie-chat", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/movie-chat`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
         body: JSON.stringify({ message: cur }),
       });
@@ -229,7 +229,7 @@ export default function ChatPage() {
     if (value.trim().length < 2) { setter([]); showSetter(false); return; }
     debounceTimer.current = setTimeout(async () => {
       try {
-        const res  = await fetch(`http://localhost:5000/api/movies/search?query=${encodeURIComponent(value.trim())}`);
+        const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/search?query=${encodeURIComponent(value.trim())}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 5);
         setter(results); showSetter(results.length > 0); activeSetter(-1);
@@ -253,7 +253,7 @@ export default function ChatPage() {
     if (!dfMovieA.trim() || !dfMovieB.trim() || dfLoading) return;
     setDfLoading(true); setDfResult(null); setDfError("");
     try {
-      const res  = await fetch("http://localhost:5000/api/chat/double-feature", {
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/double-feature`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ movieA: dfMovieA.trim(), movieB: dfMovieB.trim() }),
       });
@@ -317,7 +317,7 @@ export default function ChatPage() {
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res  = await fetch(`http://localhost:5000/api/movies/search?query=${encodeURIComponent(trimmed)}`);
+        const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/search?query=${encodeURIComponent(trimmed)}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 6);
         setSuggestions(results); setShowSuggestions(results.length > 0); setActiveIndex(-1);
@@ -374,7 +374,7 @@ export default function ChatPage() {
   }, [loading, messages.length]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/movies/trending")
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/trending`)
       .then(r => r.json())
       .then(d => { setTrending(d.movies || []); setTrendingLoading(false); })
       .catch(() => setTrendingLoading(false));
@@ -388,7 +388,7 @@ export default function ChatPage() {
   const fetchInsight = async (title) => {
     setInsight(""); setAnimatedInsight(""); setInsightLoading(true);
     try {
-      const res  = await fetch("http://localhost:5000/api/chat/movie-insight", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/movie-insight`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
       const data = await res.json();
       await typeText(data.insight || data.message || "No AI insight available.", setAnimatedInsight);
       setInsight(data.insight || "");
@@ -404,7 +404,7 @@ export default function ChatPage() {
     setLoading(true);
     await new Promise(r => setTimeout(r, 50));
     try {
-      const res  = await fetch("http://localhost:5000/api/chat/movie-chat", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
       const data = await res.json();
       const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
       setMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
