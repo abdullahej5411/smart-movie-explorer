@@ -121,6 +121,11 @@ export const toggleFavoriteHandler = async (req, res) => {
 export const getListsHandler = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("watchlist favorites");
+
+    if (!user) {
+      return res.json({ watchlist: [], favorites: [] });
+    }
+
     res.json({ watchlist: user.watchlist || [], favorites: user.favorites || [] });
   } catch (error) {
     console.error("Get lists error:", error);
