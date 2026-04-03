@@ -21,6 +21,9 @@ const MOODS = [
 ];
 
 export default function ChatPage() {
+  const [mounted, setMounted] = useState(false); // Add this right here
+
+
   const [message, setMessage]               = useState("");
   const [messages, setMessages]             = useState([]);
   const [loading, setLoading]               = useState(false);
@@ -84,6 +87,12 @@ export default function ChatPage() {
   const [favorites, setFavorites]           = useState([]);
   const [showListsDrawer, setShowListsDrawer] = useState(false);
   const [listsTab, setListsTab]             = useState("watchlist");
+
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
 
   useEffect(() => {
     const token = localStorage.getItem("smex_token");
@@ -516,6 +525,15 @@ export default function ChatPage() {
       ))}
     </div>
   );
+
+
+  // Add this block right before your main return
+  if (!mounted) {
+    // This renders a sleek, solid dark background for the split-second
+    // before your styles are ready, completely hiding the trash UI.
+    return <div style={{ minHeight: '100vh', background: '#080808' }} />;
+  }
+
 
   return (
     <div className="app-root">
