@@ -1043,6 +1043,34 @@ export default function ChatPage() {
           .float-btn { bottom: 24px; right: 20px; }
           .lists-drawer { width: 100%; }
           .signin-btn span { display: none; }
+          
+          
+          /* ═══ MOBILE TAPS & SPACING FIX ═══ */
+          .row-arrow, .row-fade-left, .row-fade-right { 
+            display: none; 
+          }
+          .movie-row { 
+            padding: 14px 20px 22px; 
+            gap: 12px; /* Shrinking the gap slightly to help fit 3 cards */
+          }
+
+          /* ═══ 3 CARDS ON MOBILE FIX ═══ */
+          /* Overriding the inline React styles to make cards smaller */
+          .trending-card, .skeleton-row-wrap > div {
+            min-width: 104px !important;
+            width: 104px !important;
+          }
+          
+          /* Resize the posters while keeping the 2:3 aspect ratio */
+          .row-poster, .skeleton-row-wrap .skeleton:first-child {
+            width: 104px !important;
+            height: 156px !important; 
+          }
+
+          /* Scale down the title slightly so it doesn't wrap awkwardly on the smaller card */
+          .trending-card .card-title {
+            font-size: 12px;
+          }
         }
       `}</style>
 
