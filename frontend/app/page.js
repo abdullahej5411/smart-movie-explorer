@@ -9,42 +9,42 @@ import {
 } from "lucide-react";
 
 const MOODS = [
-  { label: "Rainy Night In",    icon: CloudRain, description: "Cozy, slow, atmospheric",      query: "cozy atmospheric movies for a rainy night at home",         gradient: "linear-gradient(135deg, #1a2a4a 0%, #0d1b2e 100%)", glow: "rgba(80,120,200,0.22)",  border: "rgba(80,140,220,0.2)"   },
-  { label: "Hype & Adrenaline", icon: Zap,       description: "Fast, loud, electric",          query: "high energy action packed adrenaline rush movies",          gradient: "linear-gradient(135deg, #2d1200 0%, #1a0800 100%)", glow: "rgba(220,100,20,0.22)",  border: "rgba(240,120,30,0.25)"  },
-  { label: "Cry It Out",        icon: Droplets,  description: "Emotional, raw, cathartic",     query: "deeply emotional movies that will make me cry",             gradient: "linear-gradient(135deg, #0e1e2e 0%, #071018 100%)", glow: "rgba(60,160,200,0.2)",   border: "rgba(80,170,210,0.2)"   },
-  { label: "Mind-Bending",      icon: Brain,     description: "Twisted, cerebral, surreal",    query: "mind bending cerebral movies that mess with your head",     gradient: "linear-gradient(135deg, #1a0d2e 0%, #0d0618 100%)", glow: "rgba(140,60,220,0.22)",  border: "rgba(160,80,240,0.22)"  },
-  { label: "Date Night",        icon: Heart,     description: "Charming, warm, romantic",      query: "romantic charming movies perfect for a date night",         gradient: "linear-gradient(135deg, #2e1020 0%, #1a0810 100%)", glow: "rgba(220,80,120,0.2)",   border: "rgba(230,100,140,0.22)" },
-  { label: "Feel-Good Friday",  icon: Sun,       description: "Fun, uplifting, joyful",        query: "feel good uplifting movies to watch on a Friday night",     gradient: "linear-gradient(135deg, #1e1800 0%, #120f00 100%)", glow: "rgba(220,180,30,0.2)",   border: "rgba(230,190,40,0.22)"  },
-  { label: "Hidden Gems",       icon: Gem,       description: "Underrated, surprising, fresh", query: "underrated hidden gem movies most people haven't seen",     gradient: "linear-gradient(135deg, #001e1a 0%, #00100e 100%)", glow: "rgba(30,200,170,0.2)",   border: "rgba(40,210,180,0.2)"   },
-  { label: "Epic Adventure",    icon: Compass,   description: "Grand, sweeping, legendary",    query: "epic adventure movies with grand sweeping storytelling",    gradient: "linear-gradient(135deg, #1a1200 0%, #0e0a00 100%)", glow: "rgba(180,140,40,0.2)",   border: "rgba(200,160,50,0.2)"   },
+  { label: "Rainy Night In", icon: CloudRain, description: "Cozy, slow, atmospheric", query: "cozy atmospheric movies for a rainy night at home", gradient: "linear-gradient(135deg, #1a2a4a 0%, #0d1b2e 100%)", glow: "rgba(80,120,200,0.22)", border: "rgba(80,140,220,0.2)" },
+  { label: "Hype & Adrenaline", icon: Zap, description: "Fast, loud, electric", query: "high energy action packed adrenaline rush movies", gradient: "linear-gradient(135deg, #2d1200 0%, #1a0800 100%)", glow: "rgba(220,100,20,0.22)", border: "rgba(240,120,30,0.25)" },
+  { label: "Cry It Out", icon: Droplets, description: "Emotional, raw, cathartic", query: "deeply emotional movies that will make me cry", gradient: "linear-gradient(135deg, #0e1e2e 0%, #071018 100%)", glow: "rgba(60,160,200,0.2)", border: "rgba(80,170,210,0.2)" },
+  { label: "Mind-Bending", icon: Brain, description: "Twisted, cerebral, surreal", query: "mind bending cerebral movies that mess with your head", gradient: "linear-gradient(135deg, #1a0d2e 0%, #0d0618 100%)", glow: "rgba(140,60,220,0.22)", border: "rgba(160,80,240,0.22)" },
+  { label: "Date Night", icon: Heart, description: "Charming, warm, romantic", query: "romantic charming movies perfect for a date night", gradient: "linear-gradient(135deg, #2e1020 0%, #1a0810 100%)", glow: "rgba(220,80,120,0.2)", border: "rgba(230,100,140,0.22)" },
+  { label: "Feel-Good Friday", icon: Sun, description: "Fun, uplifting, joyful", query: "feel good uplifting movies to watch on a Friday night", gradient: "linear-gradient(135deg, #1e1800 0%, #120f00 100%)", glow: "rgba(220,180,30,0.2)", border: "rgba(230,190,40,0.22)" },
+  { label: "Hidden Gems", icon: Gem, description: "Underrated, surprising, fresh", query: "underrated hidden gem movies most people haven't seen", gradient: "linear-gradient(135deg, #001e1a 0%, #00100e 100%)", glow: "rgba(30,200,170,0.2)", border: "rgba(40,210,180,0.2)" },
+  { label: "Epic Adventure", icon: Compass, description: "Grand, sweeping, legendary", query: "epic adventure movies with grand sweeping storytelling", gradient: "linear-gradient(135deg, #1a1200 0%, #0e0a00 100%)", glow: "rgba(180,140,40,0.2)", border: "rgba(200,160,50,0.2)" },
 ];
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function ChatPage() {
-  const [mounted, setMounted]               = useState(false);
-  const [message, setMessage]               = useState("");
-  const [messages, setMessages]             = useState([]);
-  const [loading, setLoading]               = useState(false);
-  const [isHovered, setIsHovered]           = useState(false);
-  const [insight, setInsight]               = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [insight, setInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
-  const [trending, setTrending]             = useState([]);
+  const [trending, setTrending] = useState([]);
   const [animatedInsight, setAnimatedInsight] = useState("");
-  const [selectedMovie, setSelectedMovie]   = useState(null);
+  const [selectedMovie, setSelectedMovie] = useState(null);
   const [trendingLoading, setTrendingLoading] = useState(true);
   const rowRef = useRef(null);
 
   // ── Autocomplete ──
-  const [suggestions, setSuggestions]         = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex]         = useState(-1);
-  const [isSearching, setIsSearching]         = useState(false);
-  const searchRef   = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef(null);
   const debounceRef = useRef(null);
 
   // ── Cinema ──
-  const [cinemaMode, setCinemaMode]   = useState(false);
+  const [cinemaMode, setCinemaMode] = useState(false);
   const [ambientColor, setAmbientColor] = useState("201,162,39");
 
   // ── Mood board ──
@@ -52,60 +52,60 @@ export default function ChatPage() {
   const [activeMoodIdx, setActiveMoodIdx] = useState(null);
 
   // ── Double Feature ──
-  const [dfMovieA, setDfMovieA]             = useState("");
-  const [dfMovieB, setDfMovieB]             = useState("");
+  const [dfMovieA, setDfMovieA] = useState("");
+  const [dfMovieB, setDfMovieB] = useState("");
   const [dfSuggestionsA, setDfSuggestionsA] = useState([]);
   const [dfSuggestionsB, setDfSuggestionsB] = useState([]);
-  const [dfShowA, setDfShowA]               = useState(false);
-  const [dfShowB, setDfShowB]               = useState(false);
-  const [dfActiveA, setDfActiveA]           = useState(-1);
-  const [dfActiveB, setDfActiveB]           = useState(-1);
-  const [dfLoading, setDfLoading]           = useState(false);
-  const [dfResult, setDfResult]             = useState(null);
-  const [dfError, setDfError]               = useState("");
+  const [dfShowA, setDfShowA] = useState(false);
+  const [dfShowB, setDfShowB] = useState(false);
+  const [dfActiveA, setDfActiveA] = useState(-1);
+  const [dfActiveB, setDfActiveB] = useState(-1);
+  const [dfLoading, setDfLoading] = useState(false);
+  const [dfResult, setDfResult] = useState(null);
+  const [dfError, setDfError] = useState("");
   const dfDebounceA = useRef(null);
   const dfDebounceB = useRef(null);
-  const dfWrapA     = useRef(null);
-  const dfWrapB     = useRef(null);
+  const dfWrapA = useRef(null);
+  const dfWrapB = useRef(null);
 
   // ── Float ──
-  const [floatOpen, setFloatOpen]         = useState(false);
+  const [floatOpen, setFloatOpen] = useState(false);
   const [floatMessages, setFloatMessages] = useState([]);
-  const [floatInput, setFloatInput]       = useState("");
-  const [floatLoading, setFloatLoading]   = useState(false);
-  const floatRef      = useRef(null);
+  const [floatInput, setFloatInput] = useState("");
+  const [floatLoading, setFloatLoading] = useState(false);
+  const floatRef = useRef(null);
   const floatInputRef = useRef(null);
-  const floatBodyRef  = useRef(null);
+  const floatBodyRef = useRef(null);
 
   // ── Auth ──
-  const [authUser, setAuthUser]           = useState(null);
-  const [authToken, setAuthToken]         = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authTab, setAuthTab]             = useState("login");
-  const [authName, setAuthName]           = useState("");
-  const [authEmail, setAuthEmail]         = useState("");
-  const [authPassword, setAuthPassword]   = useState("");
-  const [authLoading, setAuthLoading]     = useState(false);
-  const [authError, setAuthError]         = useState("");
+  const [authTab, setAuthTab] = useState("login");
+  const [authName, setAuthName] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   // ── Lists ──
-  const [watchlist, setWatchlist]             = useState([]);
-  const [favorites, setFavorites]             = useState([]);
+  const [watchlist, setWatchlist] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [showListsDrawer, setShowListsDrawer] = useState(false);
-  const [listsTab, setListsTab]               = useState("watchlist");
+  const [listsTab, setListsTab] = useState("watchlist");
 
   // ── NEW: Extra movie sections ──
-  const [popular, setPopular]                     = useState([]);
-  const [popularLoading, setPopularLoading]       = useState(true);
-  const [topRated, setTopRated]                   = useState([]);
-  const [topRatedLoading, setTopRatedLoading]     = useState(true);
-  const [nowPlaying, setNowPlaying]               = useState([]);
+  const [popular, setPopular] = useState([]);
+  const [popularLoading, setPopularLoading] = useState(true);
+  const [topRated, setTopRated] = useState([]);
+  const [topRatedLoading, setTopRatedLoading] = useState(true);
+  const [nowPlaying, setNowPlaying] = useState([]);
   const [nowPlayingLoading, setNowPlayingLoading] = useState(true);
-  const [popularHovered, setPopularHovered]       = useState(false);
-  const [topRatedHovered, setTopRatedHovered]     = useState(false);
+  const [popularHovered, setPopularHovered] = useState(false);
+  const [topRatedHovered, setTopRatedHovered] = useState(false);
   const [nowPlayingHovered, setNowPlayingHovered] = useState(false);
-  const popularRowRef   = useRef(null);
-  const topRatedRowRef  = useRef(null);
+  const popularRowRef = useRef(null);
+  const topRatedRowRef = useRef(null);
   const nowPlayingRowRef = useRef(null);
 
   // ── Mount guard ──
@@ -114,23 +114,23 @@ export default function ChatPage() {
   // ── Init auth ──
   useEffect(() => {
     const token = localStorage.getItem("smex_token");
-    const user  = localStorage.getItem("smex_user");
+    const user = localStorage.getItem("smex_user");
     if (token && user) { setAuthToken(token); setAuthUser(JSON.parse(user)); fetchLists(token); }
   }, []);
 
   const fetchLists = async (token) => {
     try {
-      const res  = await fetch(`${API}/api/movies/lists`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/api/movies/lists`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setWatchlist(data.watchlist || []); setFavorites(data.favorites || []);
-    } catch {}
+    } catch { }
   };
 
   const loginUser = async () => {
     if (!authEmail || !authPassword) { setAuthError("Please fill in all fields"); return; }
     setAuthLoading(true); setAuthError("");
     try {
-      const res  = await fetch(`${API}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: authEmail, password: authPassword }) });
+      const res = await fetch(`${API}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: authEmail, password: authPassword }) });
       const data = await res.json();
       if (data.error) { setAuthError(data.error); return; }
       localStorage.setItem("smex_token", data.token);
@@ -146,7 +146,7 @@ export default function ChatPage() {
     if (!authName || !authEmail || !authPassword) { setAuthError("Please fill in all fields"); return; }
     setAuthLoading(true); setAuthError("");
     try {
-      const res  = await fetch(`${API}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: authName, email: authEmail, password: authPassword }) });
+      const res = await fetch(`${API}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: authName, email: authEmail, password: authPassword }) });
       const data = await res.json();
       if (data.error) { setAuthError(data.error); return; }
       localStorage.setItem("smex_token", data.token);
@@ -166,19 +166,19 @@ export default function ChatPage() {
   const toggleWatchlist = async (movie) => {
     if (!authToken) { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); return; }
     try {
-      const res  = await fetch(`${API}/api/movies/watchlist`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ movie }) });
+      const res = await fetch(`${API}/api/movies/watchlist`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ movie }) });
       const data = await res.json();
       setWatchlist(data.watchlist || []);
-    } catch {}
+    } catch { }
   };
 
   const toggleFavorite = async (movie) => {
     if (!authToken) { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); return; }
     try {
-      const res  = await fetch(`${API}/api/movies/favorites`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ movie }) });
+      const res = await fetch(`${API}/api/movies/favorites`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ movie }) });
       const data = await res.json();
       setFavorites(data.favorites || []);
-    } catch {}
+    } catch { }
   };
 
   const isInWatchlist = (tmdbId) => watchlist.some(m => String(m.tmdbId) === String(tmdbId));
@@ -195,7 +195,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     const clickHandler = (e) => { if (floatRef.current && !floatRef.current.contains(e.target)) setFloatOpen(false); };
-    const keyHandler   = (e) => { if (e.key === "Escape") { setFloatOpen(false); } };
+    const keyHandler = (e) => { if (e.key === "Escape") { setFloatOpen(false); } };
     document.addEventListener("mousedown", clickHandler);
     document.addEventListener("keydown", keyHandler);
     return () => { document.removeEventListener("mousedown", clickHandler); document.removeEventListener("keydown", keyHandler); };
@@ -210,14 +210,14 @@ export default function ChatPage() {
     setFloatMessages(prev => [...prev, { role: "user", text: cur }, { role: "typing" }]);
     setFloatLoading(true);
     try {
-      const res  = await fetch(`${API}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
+      const res = await fetch(`${API}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
       const data = await res.json();
       const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
       setFloatMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
       let built = "";
       for (const w of reply.split(" ")) {
         built += w + " ";
-        setFloatMessages(prev => { const u = [...prev]; u[u.length-1] = { ...u[u.length-1], text: built }; return u; });
+        setFloatMessages(prev => { const u = [...prev]; u[u.length - 1] = { ...u[u.length - 1], text: built }; return u; });
         await new Promise(r => setTimeout(r, 28));
       }
     } catch {
@@ -231,7 +231,7 @@ export default function ChatPage() {
     if (value.trim().length < 2) { setter([]); showSetter(false); return; }
     debounceTimer.current = setTimeout(async () => {
       try {
-        const res  = await fetch(`${API}/api/movies/search?query=${encodeURIComponent(value.trim())}`);
+        const res = await fetch(`${API}/api/movies/search?query=${encodeURIComponent(value.trim())}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 5);
         setter(results); showSetter(results.length > 0); activeSetter(-1);
@@ -255,7 +255,7 @@ export default function ChatPage() {
     if (!dfMovieA.trim() || !dfMovieB.trim() || dfLoading) return;
     setDfLoading(true); setDfResult(null); setDfError("");
     try {
-      const res  = await fetch(`${API}/api/chat/double-feature`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieA: dfMovieA.trim(), movieB: dfMovieB.trim() }) });
+      const res = await fetch(`${API}/api/chat/double-feature`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieA: dfMovieA.trim(), movieB: dfMovieB.trim() }) });
       const data = await res.json();
       if (data.error) { setDfError(data.error); return; }
       setDfResult(data);
@@ -287,15 +287,15 @@ export default function ChatPage() {
         const data = ctx.getImageData(SIZE * 0.2, SIZE * 0.3, SIZE * 0.6, SIZE * 0.5).data;
         let r = 0, g = 0, b = 0, count = 0;
         for (let i = 0; i < data.length; i += 16) {
-          const pr = data[i], pg = data[i+1], pb = data[i+2];
-          const brightness = (pr+pg+pb)/3, max = Math.max(pr,pg,pb), min = Math.min(pr,pg,pb);
-          const sat = max === 0 ? 0 : (max-min)/max;
-          if (brightness > 20 && brightness < 240 && sat > 0.15) { r+=pr; g+=pg; b+=pb; count++; }
+          const pr = data[i], pg = data[i + 1], pb = data[i + 2];
+          const brightness = (pr + pg + pb) / 3, max = Math.max(pr, pg, pb), min = Math.min(pr, pg, pb);
+          const sat = max === 0 ? 0 : (max - min) / max;
+          if (brightness > 20 && brightness < 240 && sat > 0.15) { r += pr; g += pg; b += pb; count++; }
         }
         if (count === 0) { resolve("201,162,39"); return; }
-        r=Math.round(r/count); g=Math.round(g/count); b=Math.round(b/count);
-        const boost=1.35, avg=(r+g+b)/3;
-        r=Math.min(255,Math.round(avg+(r-avg)*boost)); g=Math.min(255,Math.round(avg+(g-avg)*boost)); b=Math.min(255,Math.round(avg+(b-avg)*boost));
+        r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+        const boost = 1.35, avg = (r + g + b) / 3;
+        r = Math.min(255, Math.round(avg + (r - avg) * boost)); g = Math.min(255, Math.round(avg + (g - avg) * boost)); b = Math.min(255, Math.round(avg + (b - avg) * boost));
         resolve(`${r},${g},${b}`);
       } catch { resolve("201,162,39"); }
     };
@@ -308,7 +308,7 @@ export default function ChatPage() {
     setCinemaMode(true); document.body.style.overflow = "hidden";
   };
   const exitCinema = () => { setCinemaMode(false); document.body.style.overflow = ""; };
-  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); setAnimatedInsight(""); setInsightLoading(false); }; 
+  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); setAnimatedInsight(""); setInsightLoading(false); };
   // ── Main autocomplete ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -317,7 +317,7 @@ export default function ChatPage() {
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res  = await fetch(`${API}/api/movies/search?query=${encodeURIComponent(trimmed)}`);
+        const res = await fetch(`${API}/api/movies/search?query=${encodeURIComponent(trimmed)}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 6);
         setSuggestions(results); setShowSuggestions(results.length > 0); setActiveIndex(-1);
@@ -335,8 +335,8 @@ export default function ChatPage() {
 
   const handleKeyDown = (e) => {
     if (!showSuggestions) { if (e.key === "Enter" && !loading) sendMessage(); return; }
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex(i => Math.min(i+1, suggestions.length-1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex(i => Math.max(i-1, -1)); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, -1)); }
     else if (e.key === "Enter") {
       e.preventDefault();
       if (activeIndex >= 0 && suggestions[activeIndex]) selectSuggestion(suggestions[activeIndex]);
@@ -442,7 +442,7 @@ export default function ChatPage() {
   const fetchInsight = async (title) => {
     setInsight(""); setAnimatedInsight(""); setInsightLoading(true);
     try {
-      const res  = await fetch(`${API}/api/chat/movie-insight`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+      const res = await fetch(`${API}/api/chat/movie-insight`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
       const data = await res.json();
       await typeText(data.insight || data.message || "No AI insight available.", setAnimatedInsight);
       setInsight(data.insight || "");
@@ -458,14 +458,14 @@ export default function ChatPage() {
     setLoading(true);
     await new Promise(r => setTimeout(r, 50));
     try {
-      const res  = await fetch(`${API}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
+      const res = await fetch(`${API}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
       const data = await res.json();
       const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
       setMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
       let built = "";
       for (const w of reply.split(" ")) {
         built += w + " ";
-        setMessages(prev => { const u = [...prev]; u[u.length-1] = { ...u[u.length-1], text: built }; return u; });
+        setMessages(prev => { const u = [...prev]; u[u.length - 1] = { ...u[u.length - 1], text: built }; return u; });
         await new Promise(r => setTimeout(r, 28));
       }
     } catch {
@@ -878,6 +878,11 @@ export default function ChatPage() {
         .cinema-btn-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; transition: transform 0.3s ease; }
         .cinema-btn.active .cinema-btn-dot { transform: scale(1.4); }
         .modal-trailer { border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 22px; transition: border-color 0.55s ease, box-shadow 0.55s ease; }
+        .trailer-ratio-wrap {
+          position: relative;
+          width: 100%;
+          padding-top: 56.25%; /* 16:9 */
+        }
         .modal-overlay.cinema-active .modal-trailer { border-color: rgba(var(--ambient-rgb), 0.2); box-shadow: 0 0 40px rgba(var(--ambient-rgb), 0.12); }
         .modal-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 8px; padding-right: 44px; color: #fff; }
         .modal-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
@@ -1012,12 +1017,99 @@ export default function ChatPage() {
         .ai-analyse-arrow { font-size: 16px; color: rgba(201,162,39,0.4); flex-shrink: 0; }
 
 
+
+        /* ═══ FOOTER ═══ */
+        
+        .site-footer {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          background: linear-gradient(180deg, var(--bg) 0%, #040404 100%);
+          padding: 48px 0 32px;
+        }
+        .footer-inner {
+          max-width: 1200px; margin: 0 auto; padding: 0 48px;
+          display: flex; flex-direction: column; align-items: center; gap: 24px;
+          text-align: center;
+        }
+
+        .footer-brand {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        .footer-logo {
+          height: 36px; width: auto; object-fit: contain;
+          display: block; 
+          margin: 0 auto 6px auto; 
+          filter: drop-shadow(0 0 8px rgba(201,162,39,0.25));
+        }
+        .footer-tagline {
+          font-size: 13px; color: var(--text-muted); font-weight: 300;
+        }
+        .footer-links {
+          display: flex; align-items: center; gap: 8px;
+          flex-wrap: wrap; justify-content: center;
+        }
+        .footer-link {
+          display: flex; align-items: center; gap: 7px;
+          padding: 9px 18px; border-radius: 99px;
+          border: 1px solid rgba(255,255,255,0.09);
+          background: rgba(255,255,255,0.03);
+          color: rgba(255,255,255,0.45);
+          font-size: 13px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          text-decoration: none;
+          transition: background 0.22s, border-color 0.22s, color 0.22s, transform 0.22s, box-shadow 0.22s;
+        }
+        .footer-link:hover {
+          background: rgba(201,162,39,0.09);
+          border-color: rgba(201,162,39,0.35);
+          color: var(--gold-lt);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(201,162,39,0.12);
+        }
+        .footer-copy {
+          font-size: 12px; color: rgba(255,255,255,0.18);
+          letter-spacing: 0.02em;
+        }
+        @media (max-width: 768px) {
+          .footer-inner { padding: 0 20px; gap: 18px; }
+          .footer-link span { display: none; }
+          .footer-link { padding: 10px; border-radius: 50%; width: 42px; height: 42px; justify-content: center; }
+          .footer-links { gap: 12px; }
+        }
+
+
         @media (max-width: 900px) {
           .mood-grid { grid-template-columns: repeat(2, 1fr); }
           .df-inputs { grid-template-columns: 1fr; }
           .df-connector { flex-direction: row; padding-top: 0; }
           .topnav-logo-text { display: none; }
         }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .topnav-inner, .hero-inner, .searchbar-inner, .main { padding-left: 28px; padding-right: 28px; }
+          .mood-grid { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+          .mood-tile { padding: 18px 14px 16px; min-height: 110px; }
+          .movies-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+          .df-inputs { grid-template-columns: 1fr auto 1fr; }
+          .modal-content { max-width: 720px; padding: 28px; }
+          .lists-drawer { width: 300px; }
+          .float-drawer { width: 340px; }
+          .hero-title { font-size: clamp(36px, 4.5vw, 58px); }
+        }
+
+        @media (max-width: 768px) and (orientation: landscape) {
+          .hero { padding: 28px 0 0; }
+          .hero-title { font-size: 28px; }
+          .hero-sub { margin-bottom: 24px; }
+          .modal-content { max-height: 85vh; padding: 16px 20px; }
+          .modal-trailer iframe { height: 220px !important; }
+          .float-drawer { max-height: 80vh; bottom: 72px; }
+          .float-btn { bottom: 16px; }
+          .main { padding-top: 32px; }
+        }
+
         @media (max-width: 768px) {
           .hero-inner, .searchbar-inner, .main, .topnav-inner { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
@@ -1061,7 +1153,31 @@ export default function ChatPage() {
           .float-btn { bottom: 24px; right: 20px; }
           .lists-drawer { width: 100%; }
           .signin-btn span { display: none; }
+          .modal-actions { flex-wrap: wrap; gap: 8px; }
+          .modal-action-btn { flex: 1; min-width: 100px; justify-content: center; }
+          .df-connector { flex-direction: row; align-items: center; padding-top: 0; gap: 8px; }
+          .section-eyebrow { font-size: 9px; }
+          .section-title { font-size: 19px; }
+          .moodboard-heading { font-size: 17px; }
           .nav-username { display: none; }
+        }
+
+        @media (max-width: 400px) {
+          .mood-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+          .mood-tile { padding: 16px 14px 14px; min-height: 100px; }
+          .mood-label { font-size: 12px; }
+          .hero-title { font-size: 32px; }
+          .df-heading { font-size: 17px; }
+          .df-result-body { padding: 16px 14px; }
+          .df-result-reason { font-size: 12px; }
+          .modal-content { padding: 18px 16px; }
+          .modal-title { font-size: 22px; }
+          .auth-modal { padding: 28px 20px; }
+          .float-drawer { width: calc(100vw - 24px); right: 12px; }
+          .float-btn { right: 12px; bottom: 18px; }
+          .movies-grid { gap: 8px; }
+          .searchbar-inner { gap: 8px; }
+          .send-btn { padding: 13px 16px; font-size: 12px; }
         }
       `}</style>
 
@@ -1138,7 +1254,7 @@ export default function ChatPage() {
                       : <div className="auto-poster-placeholder">🎬</div>}
                     <div style={{ overflow: "hidden" }}>
                       <p className="auto-title">{movie.title}</p>
-                      <p className="auto-meta">★ {Number(movie.vote_average).toFixed(1)}{movie.release_date && ` · ${movie.release_date.slice(0,4)}`}</p>
+                      <p className="auto-meta">★ {Number(movie.vote_average).toFixed(1)}{movie.release_date && ` · ${movie.release_date.slice(0, 4)}`}</p>
                     </div>
                   </div>
                 ))}
@@ -1434,10 +1550,12 @@ export default function ChatPage() {
             </div>
             {selectedMovie.trailer && (
               <div className="modal-trailer">
-                <iframe width="100%" height={cinemaMode ? 540 : 400}
-                  src={`https://www.youtube.com/embed/${selectedMovie.trailer}`}
-                  title="Trailer" frameBorder="0" allowFullScreen
-                  style={{ transition: "height 0.55s cubic-bezier(0.16, 1, 0.3, 1)", display: "block" }} />
+                <div className="trailer-ratio-wrap">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${selectedMovie.trailer}`}
+                    title="Trailer" frameBorder="0" allowFullScreen
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+                </div>
               </div>
             )}
             {selectedMovie.overview && <p className="modal-overview">{selectedMovie.overview}</p>}
@@ -1602,7 +1720,7 @@ export default function ChatPage() {
         <div className="auth-overlay" onClick={e => { if (e.target === e.currentTarget) setShowAuthModal(false); }}>
           <div className="auth-modal">
             <button className="modal-close" onClick={() => setShowAuthModal(false)}>✕</button>
-            <img src="/logo2.png" alt="Logo" className="auth-logo-img" />            
+            <img src="/logo2.png" alt="Logo" className="auth-logo-img" />
             <h2 className="auth-title">{authTab === "login" ? "Welcome back" : "Create account"}</h2>
             <p className="auth-sub">
               {authTab === "login" ? "Sign in to access your watchlist and favorites" : "Save your favorite films and build a personal watchlist"}
@@ -1637,6 +1755,33 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+
+      {/* ═══════════ FOOTER ═══════════ */}
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <img src="/logo.png" alt="TensorFilm" className="footer-logo" />
+            <p className="footer-tagline">Your Companion for movie discovery and cinematic insights.</p>
+          </div>
+          <div className="footer-links">
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="footer-link" aria-label="Instagram">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
+              <span>Instagram</span>
+            </a>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-link" aria-label="GitHub">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" /></svg>
+              <span>GitHub</span>
+            </a>
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="footer-link" aria-label="LinkedIn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" /></svg>
+              <span>LinkedIn</span>
+            </a>
+          </div>
+          <p className="footer-copy">© {new Date().getFullYear()} TensorFilm. Built with Love! ;D</p>
+        </div>
+      </footer>
+
     </div>
   );
 }
