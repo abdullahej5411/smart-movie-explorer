@@ -132,3 +132,87 @@ export const getListsHandler = async (req, res) => {
     res.status(500).json({ error: "Failed to get lists" });
   }
 };
+
+export const getPopularMoviesHandler = async (req, res) => {
+  try {
+    const cached = await redisClient.get("movies:popular");
+    if (cached) return res.json(JSON.parse(cached));
+    const response = await fetch(
+      `https://api.themoviedb.org/3/movie/popular?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
+    );
+    const data = await response.json();
+    const movies = await Promise.all(
+      data.results.slice(0, 12).map(async (movie) => {
+        const trailerKey = await getMovieTrailer(movie.id);
+        return {
+          tmdbId: movie.id, title: movie.title,
+          poster: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+          overview: movie.overview, rating: movie.vote_average,
+          releaseDate: movie.release_date, trailer: trailerKey,
+        };
+      })
+    );
+    const result = { movies };
+    await redisClient.set("movies:popular", JSON.stringify(result), "EX", 3600);
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch popular movies" });
+  }
+};
+
+export const getTopRatedMoviesHandler = async (req, res) => {
+  try {
+    const cached = await redisClient.get("movies:top-rated");
+    if (cached) return res.json(JSON.parse(cached));
+    const response = await fetch(
+      `https://api.themoviedb.org/3/movie/top_rated?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
+    );
+    const data = await response.json();
+    const movies = await Promise.all(
+      data.results.slice(0, 12).map(async (movie) => {
+        const trailerKey = await getMovieTrailer(movie.id);
+        return {
+          tmdbId: movie.id, title: movie.title,
+          poster: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+          overview: movie.overview, rating: movie.vote_average,
+          releaseDate: movie.release_date, trailer: trailerKey,
+        };
+      })
+    );
+    const result = { movies };
+    await redisClient.set("movies:top-rated", JSON.stringify(result), "EX", 7200);
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch top rated movies" });
+  }
+};
+
+export const getNowPlayingMoviesHandler = async (req, res) => {
+  try {
+    const cached = await redisClient.get("movies:now-playing");
+    if (cached) return res.json(JSON.parse(cached));
+    const response = await fetch(
+      `https://api.themoviedb.org/3/movie/now_playing?api_key=${process.env.TMDB_API_KEY}&language=en-US&page=1`
+    );
+    const data = await response.json();
+    const movies = await Promise.all(
+      data.results.slice(0, 12).map(async (movie) => {
+        const trailerKey = await getMovieTrailer(movie.id);
+        return {
+          tmdbId: movie.id, title: movie.title,
+          poster: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+          overview: movie.overview, rating: movie.vote_average,
+          releaseDate: movie.release_date, trailer: trailerKey,
+        };
+      })
+    );
+    const result = { movies };
+    await redisClient.set("movies:now-playing", JSON.stringify(result), "EX", 3600);
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch now playing movies" });
+  }
+};
