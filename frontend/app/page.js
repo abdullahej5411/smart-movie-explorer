@@ -1022,6 +1022,12 @@ export default function ChatPage() {
           .hero-inner, .searchbar-inner, .main, .topnav-inner { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
           
+          /* ═══ DISABLE STICKY HOVER ANIMATIONS ON MOBILE ═══ */
+          .card-hover-overlay { display: none !important; }
+          .trending-card:hover, .grid-card:hover { transform: none !important; }
+
+
+
           /* ═══ AI RECOMMENDATION 2-GRID FIX ═══ */
           .ai-box { padding: 20px 16px; } 
           .movies-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } 
