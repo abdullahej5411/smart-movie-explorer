@@ -1021,20 +1021,40 @@ export default function ChatPage() {
         @media (max-width: 768px) {
           .hero-inner, .searchbar-inner, .main, .topnav-inner { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
-          .movies-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
-          .typing-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
+          
+          /* ═══ AI RECOMMENDATION 2-GRID FIX ═══ */
+          .ai-box { padding: 20px 16px; } 
+          .movies-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } 
+          
+          /* This forces the wrapper to be the exact shape of a movie poster */
+          .grid-poster { aspect-ratio: 2 / 3; height: auto !important; } 
+          /* Since the wrapper is perfectly shaped, 'cover' fills it exactly with zero cropping */
+          .grid-card .card-poster { object-fit: cover !important; } 
+          
+          .grid-card-body { padding: 12px 10px; } 
+          .grid-card-title { font-size: 13px; margin-bottom: 4px; line-height: 1.2; } 
+          
+          /* ═══ RESTORED 3-CARDS SCROLL FIX ═══ */
+          .row-arrow, .row-fade-left, .row-fade-right { display: none; }
+          .movie-row { padding: 14px 20px 22px; gap: 12px; }
+          .trending-card, .skeleton-row-wrap > div { min-width: 104px !important; width: 104px !important; }
+          .row-poster, .skeleton-row-wrap .skeleton:first-child { width: 104px !important; height: 156px !important; }
+          .trending-card .card-poster { object-fit: cover !important; }
+          .trending-card .card-title { font-size: 12px; }
+
+          /* Also fix the AI skeleton loaders so they don't look stretched */
+          .typing-skeleton-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .skeleton-grid-wrap > div > .skeleton:first-child { aspect-ratio: 2 / 3; height: auto !important; }
+
           .cinema-btn { display: none; }
           .mood-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
           .df-wrap { padding: 22px 18px; }
           .df-result { grid-template-columns: 1fr; }
-          .df-result-poster { width: 100%; height: 180px; }
+          .df-result-poster { width: 100%; aspect-ratio: 2 / 3; height: auto; }
           .float-drawer { width: calc(100vw - 40px); right: 20px; bottom: 96px; }
           .float-btn { bottom: 24px; right: 20px; }
           .lists-drawer { width: 100%; }
-          .trending-card, .skeleton-row-wrap > div { min-width: 104px !important; width: 104px !important; }
-          .row-poster, .skeleton-row-wrap .skeleton:first-child { width: 104px !important; height: 156px !important; }
-          .trending-card .card-title { font-size: 12px; }
-          .movie-row { padding: 14px 20px 22px; gap: 12px; }
+          .signin-btn span { display: none; }
           .nav-username { display: none; }
         }
       `}</style>
