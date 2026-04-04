@@ -813,6 +813,7 @@ export default function ChatPage() {
         .movie-row::-webkit-scrollbar { display: none; }
 
         /* ═══ CARDS ═══ */
+        /* ═══ CARDS ═══ */
         .card-poster-wrap { position: relative; overflow: hidden; background: #1a1a1a; }
         .row-poster  { width: 158px; height: 238px; border-radius: var(--radius-card); border: 1px solid rgba(255,255,255,0.08); }
         .grid-poster { height: 260px; }
@@ -821,23 +822,29 @@ export default function ChatPage() {
         .card-meta   { margin-top: 10px; padding: 0 2px; }
         .card-title  { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card-rating-text { font-size: 12px; color: var(--gold); margin-top: 4px; font-weight: 600; }
-        .trending-card { transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
-        .trending-card:hover { transform: translateY(-8px) scale(1.03); }
-        .trending-card:hover .card-poster { transform: scale(1.07); }
-        .trending-card:hover .row-poster  { box-shadow: 0 18px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--gold-border); }
-        .grid-card { transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
-        .grid-card:hover { transform: translateY(-7px); }
-        .grid-card:hover .card-poster { transform: scale(1.06); }
+        
+        .trending-card, .grid-card { transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
         .grid-card-inner { border-radius: var(--radius-card); overflow: hidden; background: var(--bg3); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5); transition: border-color 0.35s ease, box-shadow 0.35s ease; }
-        .grid-card:hover .grid-card-inner { border-color: var(--gold-border); box-shadow: 0 22px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,162,39,0.18); }
         .card-hover-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0); display: flex; align-items: center; justify-content: center; transition: background 0.3s ease; }
-        .grid-card:hover .card-hover-overlay, .trending-card:hover .card-hover-overlay { background: rgba(0,0,0,0.38); }
         .card-play-btn { width: 46px; height: 46px; border-radius: 50%; background: rgba(201,162,39,0.92); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #000; padding-left: 3px; transform: scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .grid-card:hover .card-play-btn, .trending-card:hover .card-play-btn { transform: scale(1); }
         .grid-card-body  { padding: 14px 14px 16px; }
         .grid-card-title { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.35; margin-bottom: 8px; letter-spacing: 0.01em; }
         .grid-card-foot  { display: flex; justify-content: space-between; align-items: center; }
         .grid-card-year  { font-size: 11px; color: var(--text-muted); }
+
+        /* 🚨 MAGIC FIX: ONLY APPLY HOVERS IF USING A REAL MOUSE 🚨 */
+        @media (hover: hover) and (pointer: fine) {
+          .trending-card:hover { transform: translateY(-8px) scale(1.03); }
+          .trending-card:hover .card-poster { transform: scale(1.07); }
+          .trending-card:hover .row-poster  { box-shadow: 0 18px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--gold-border); }
+          
+          .grid-card:hover { transform: translateY(-7px); }
+          .grid-card:hover .card-poster { transform: scale(1.06); }
+          .grid-card:hover .grid-card-inner { border-color: var(--gold-border); box-shadow: 0 22px 50px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,162,39,0.18); }
+          
+          .grid-card:hover .card-hover-overlay, .trending-card:hover .card-hover-overlay { background: rgba(0,0,0,0.38); }
+          .grid-card:hover .card-play-btn, .trending-card:hover .card-play-btn { transform: scale(1); }
+        }
 
         /* ═══ SECTION DIVIDER ═══ */
         .section-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent); margin-bottom: 52px; }
@@ -1114,11 +1121,6 @@ export default function ChatPage() {
           .hero-inner, .searchbar-inner, .main, .topnav-inner { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
           
-          /* ═══ DISABLE STICKY HOVER ANIMATIONS ON MOBILE ═══ */
-          .card-hover-overlay { display: none !important; }
-          .trending-card:hover, .grid-card:hover { transform: none !important; }
-
-
 
           /* ═══ AI RECOMMENDATION 2-GRID FIX ═══ */
           .ai-box { padding: 20px 16px; } 
