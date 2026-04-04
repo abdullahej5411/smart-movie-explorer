@@ -1106,8 +1106,8 @@ export default function ChatPage() {
         <div className="hero-line" />
         <div className="hero-inner">
           <p className="hero-eyebrow">◈ AI-Powered Discovery</p>
-          <h1 className="hero-title">TensorFilm</h1>
-          <p className="hero-sub">Movie discovery and cinematic insights</p>
+          <h1 className="hero-title">Welcome To TensorFilm!</h1>
+          <p className="hero-sub">Your Companion for movie discovery and cinematic insights.</p>
         </div>
       </header>
 
