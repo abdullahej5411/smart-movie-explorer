@@ -308,8 +308,7 @@ export default function ChatPage() {
     setCinemaMode(true); document.body.style.overflow = "hidden";
   };
   const exitCinema = () => { setCinemaMode(false); document.body.style.overflow = ""; };
-  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); setAnimatedInsight(""); };
-
+  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); setAnimatedInsight(""); setInsightLoading(false); }; 
   // ── Main autocomplete ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -434,11 +433,6 @@ export default function ChatPage() {
       .then(r => r.json()).then(d => { setNowPlaying(d.movies || []); setNowPlayingLoading(false); }).catch(() => setNowPlayingLoading(false));
   }, []);
 
-  // ── NEW: Fetch insight automatically when a movie is selected ──
-  useEffect(() => {
-    if (!selectedMovie) return;
-    fetchInsight(selectedMovie.title);
-  }, [selectedMovie]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const typeText = async (text, setter) => {
     setter(""); let cur = "";
@@ -1007,6 +1001,17 @@ export default function ChatPage() {
 
         @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
 
+
+        /* ═══ AI ANALYSE BUTTON ═══ */
+        .ai-analyse-wrap { margin-bottom: 4px; }
+        .ai-analyse-btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 10px; padding: 13px 24px; border-radius: 12px; border: 1px solid rgba(201,162,39,0.35); background: linear-gradient(135deg, rgba(201,162,39,0.08) 0%, rgba(139,105,20,0.05) 100%); color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.25s ease, box-shadow 0.3s ease; width: 100%; justify-content: center; }
+        .ai-analyse-btn:hover:not(:disabled) { background: linear-gradient(135deg, rgba(201,162,39,0.14) 0%, rgba(139,105,20,0.08) 100%); border-color: rgba(201,162,39,0.6); color: var(--gold-lt); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(201,162,39,0.18); }
+        .ai-analyse-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, rgba(245,200,66,0.18), rgba(201,162,39,0.1)); border: 1px solid rgba(201,162,39,0.25); }
+        .ai-analyse-label { flex: 1; text-align: left; }
+        .ai-analyse-sub { font-size: 10px; color: rgba(255,255,255,0.32); font-weight: 400; letter-spacing: 0.04em; text-transform: none; margin-top: 1px; display: block; }
+        .ai-analyse-arrow { font-size: 16px; color: rgba(201,162,39,0.4); flex-shrink: 0; }
+
+
         @media (max-width: 900px) {
           .mood-grid { grid-template-columns: repeat(2, 1fr); }
           .df-inputs { grid-template-columns: 1fr; }
@@ -1410,6 +1415,25 @@ export default function ChatPage() {
               </div>
             )}
             {selectedMovie.overview && <p className="modal-overview">{selectedMovie.overview}</p>}
+
+            {/* ══ RESTORED AI BUTTON ══ */}
+            {!insightLoading && !insight && (
+              <div className="ai-analyse-wrap">
+                <button
+                  className="ai-analyse-btn"
+                  onClick={() => fetchInsight(selectedMovie.title)}
+                >
+                  <span className="ai-analyse-icon">✦</span>
+                  <span className="ai-analyse-label">
+                    Analyse with AI
+                    <span className="ai-analyse-sub">Deep cinematic breakdown powered by Gemini</span>
+                  </span>
+                  <span className="ai-analyse-arrow">→</span>
+                </button>
+              </div>
+            )}
+
+
             {(insightLoading || insight) && (
               <div className="insight-block">
                 <div className="insight-header">
