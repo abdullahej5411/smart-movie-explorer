@@ -5,8 +5,7 @@ import {
   CloudRain, Zap, Droplets, Brain,
   Heart, Sun, Gem, Compass,
   MessageCircle, X, Send, Trash2,
-  Bookmark, BookmarkCheck, User, LogOut,
-  Sparkles,
+  Bookmark, BookmarkCheck, User, LogOut, ChevronDown,
 } from "lucide-react";
 
 const MOODS = [
@@ -20,10 +19,10 @@ const MOODS = [
   { label: "Epic Adventure",    icon: Compass,   description: "Grand, sweeping, legendary",    query: "epic adventure movies with grand sweeping storytelling",    gradient: "linear-gradient(135deg, #1a1200 0%, #0e0a00 100%)", glow: "rgba(180,140,40,0.2)",   border: "rgba(200,160,50,0.2)"   },
 ];
 
+const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 export default function ChatPage() {
-  const [mounted, setMounted] = useState(false); // Add this right here
-
-
+  const [mounted, setMounted]               = useState(false);
   const [message, setMessage]               = useState("");
   const [messages, setMessages]             = useState([]);
   const [loading, setLoading]               = useState(false);
@@ -36,19 +35,23 @@ export default function ChatPage() {
   const [trendingLoading, setTrendingLoading] = useState(true);
   const rowRef = useRef(null);
 
-  const [suggestions, setSuggestions]       = useState([]);
+  // ── Autocomplete ──
+  const [suggestions, setSuggestions]         = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex]       = useState(-1);
-  const [isSearching, setIsSearching]       = useState(false);
+  const [activeIndex, setActiveIndex]         = useState(-1);
+  const [isSearching, setIsSearching]         = useState(false);
   const searchRef   = useRef(null);
   const debounceRef = useRef(null);
 
-  const [cinemaMode, setCinemaMode]         = useState(false);
-  const [ambientColor, setAmbientColor]     = useState("201,162,39");
+  // ── Cinema ──
+  const [cinemaMode, setCinemaMode]   = useState(false);
+  const [ambientColor, setAmbientColor] = useState("201,162,39");
 
-  const showMoodBoard   = messages.length === 0 && !loading;
-  const [activeMoodIdx, setActiveMoodIdx]   = useState(null);
+  // ── Mood board ──
+  const showMoodBoard = messages.length === 0 && !loading;
+  const [activeMoodIdx, setActiveMoodIdx] = useState(null);
 
+  // ── Double Feature ──
   const [dfMovieA, setDfMovieA]             = useState("");
   const [dfMovieB, setDfMovieB]             = useState("");
   const [dfSuggestionsA, setDfSuggestionsA] = useState([]);
@@ -65,53 +68,61 @@ export default function ChatPage() {
   const dfWrapA     = useRef(null);
   const dfWrapB     = useRef(null);
 
-  const [floatOpen, setFloatOpen]           = useState(false);
-  const [floatMessages, setFloatMessages]   = useState([]);
-  const [floatInput, setFloatInput]         = useState("");
-  const [floatLoading, setFloatLoading]     = useState(false);
+  // ── Float ──
+  const [floatOpen, setFloatOpen]         = useState(false);
+  const [floatMessages, setFloatMessages] = useState([]);
+  const [floatInput, setFloatInput]       = useState("");
+  const [floatLoading, setFloatLoading]   = useState(false);
   const floatRef      = useRef(null);
   const floatInputRef = useRef(null);
   const floatBodyRef  = useRef(null);
 
-  const [authUser, setAuthUser]             = useState(null);
-  const [authToken, setAuthToken]           = useState(null);
-  const [showAuthModal, setShowAuthModal]   = useState(false);
-  const [authTab, setAuthTab]               = useState("login");
-  const [authName, setAuthName]             = useState("");
-  const [authEmail, setAuthEmail]           = useState("");
-  const [authPassword, setAuthPassword]     = useState("");
-  const [authLoading, setAuthLoading]       = useState(false);
-  const [authError, setAuthError]           = useState("");
+  // ── Auth ──
+  const [authUser, setAuthUser]           = useState(null);
+  const [authToken, setAuthToken]         = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab]             = useState("login");
+  const [authName, setAuthName]           = useState("");
+  const [authEmail, setAuthEmail]         = useState("");
+  const [authPassword, setAuthPassword]   = useState("");
+  const [authLoading, setAuthLoading]     = useState(false);
+  const [authError, setAuthError]         = useState("");
 
-  const [watchlist, setWatchlist]           = useState([]);
-  const [favorites, setFavorites]           = useState([]);
+  // ── Lists ──
+  const [watchlist, setWatchlist]             = useState([]);
+  const [favorites, setFavorites]             = useState([]);
   const [showListsDrawer, setShowListsDrawer] = useState(false);
-  const [listsTab, setListsTab]             = useState("watchlist");
+  const [listsTab, setListsTab]               = useState("watchlist");
 
+  // ── NEW: Extra movie sections ──
+  const [popular, setPopular]                     = useState([]);
+  const [popularLoading, setPopularLoading]       = useState(true);
+  const [topRated, setTopRated]                   = useState([]);
+  const [topRatedLoading, setTopRatedLoading]     = useState(true);
+  const [nowPlaying, setNowPlaying]               = useState([]);
+  const [nowPlayingLoading, setNowPlayingLoading] = useState(true);
+  const [popularHovered, setPopularHovered]       = useState(false);
+  const [topRatedHovered, setTopRatedHovered]     = useState(false);
+  const [nowPlayingHovered, setNowPlayingHovered] = useState(false);
+  const popularRowRef   = useRef(null);
+  const topRatedRowRef  = useRef(null);
+  const nowPlayingRowRef = useRef(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // ── Mount guard ──
+  useEffect(() => { setMounted(true); }, []);
 
-
+  // ── Init auth ──
   useEffect(() => {
     const token = localStorage.getItem("smex_token");
     const user  = localStorage.getItem("smex_user");
-    if (token && user) {
-      setAuthToken(token);
-      setAuthUser(JSON.parse(user));
-      fetchLists(token);
-    }
+    if (token && user) { setAuthToken(token); setAuthUser(JSON.parse(user)); fetchLists(token); }
   }, []);
 
   const fetchLists = async (token) => {
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/lists`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res  = await fetch(`${API}/api/movies/lists`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setWatchlist(data.watchlist || []);
-      setFavorites(data.favorites || []);
+      setWatchlist(data.watchlist || []); setFavorites(data.favorites || []);
     } catch {}
   };
 
@@ -119,10 +130,7 @@ export default function ChatPage() {
     if (!authEmail || !authPassword) { setAuthError("Please fill in all fields"); return; }
     setAuthLoading(true); setAuthError("");
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: authEmail, password: authPassword }),
-      });
+      const res  = await fetch(`${API}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: authEmail, password: authPassword }) });
       const data = await res.json();
       if (data.error) { setAuthError(data.error); return; }
       localStorage.setItem("smex_token", data.token);
@@ -138,10 +146,7 @@ export default function ChatPage() {
     if (!authName || !authEmail || !authPassword) { setAuthError("Please fill in all fields"); return; }
     setAuthLoading(true); setAuthError("");
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: authName, email: authEmail, password: authPassword }),
-      });
+      const res  = await fetch(`${API}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: authName, email: authEmail, password: authPassword }) });
       const data = await res.json();
       if (data.error) { setAuthError(data.error); return; }
       localStorage.setItem("smex_token", data.token);
@@ -161,11 +166,7 @@ export default function ChatPage() {
   const toggleWatchlist = async (movie) => {
     if (!authToken) { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); return; }
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/watchlist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ movie }),
-      });
+      const res  = await fetch(`${API}/api/movies/watchlist`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ movie }) });
       const data = await res.json();
       setWatchlist(data.watchlist || []);
     } catch {}
@@ -174,11 +175,7 @@ export default function ChatPage() {
   const toggleFavorite = async (movie) => {
     if (!authToken) { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); return; }
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/favorites`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ movie }),
-      });
+      const res  = await fetch(`${API}/api/movies/favorites`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify({ movie }) });
       const data = await res.json();
       setFavorites(data.favorites || []);
     } catch {}
@@ -187,11 +184,9 @@ export default function ChatPage() {
   const isInWatchlist = (tmdbId) => watchlist.some(m => String(m.tmdbId) === String(tmdbId));
   const isInFavorites = (tmdbId) => favorites.some(m => String(m.tmdbId) === String(tmdbId));
 
+  // ── Float effects ──
   useEffect(() => {
-    if (floatOpen && selectedMovie) {
-      setFloatInput(`Tell me more about ${selectedMovie.title}`);
-      setTimeout(() => floatInputRef.current?.focus(), 80);
-    }
+    if (floatOpen && selectedMovie) { setFloatInput(`Tell me more about ${selectedMovie.title}`); setTimeout(() => floatInputRef.current?.focus(), 80); }
   }, [floatOpen, selectedMovie]);
 
   useEffect(() => {
@@ -200,7 +195,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     const clickHandler = (e) => { if (floatRef.current && !floatRef.current.contains(e.target)) setFloatOpen(false); };
-    const keyHandler   = (e) => { if (e.key === "Escape") setFloatOpen(false); };
+    const keyHandler   = (e) => { if (e.key === "Escape") { setFloatOpen(false); } };
     document.addEventListener("mousedown", clickHandler);
     document.addEventListener("keydown", keyHandler);
     return () => { document.removeEventListener("mousedown", clickHandler); document.removeEventListener("keydown", keyHandler); };
@@ -215,10 +210,7 @@ export default function ChatPage() {
     setFloatMessages(prev => [...prev, { role: "user", text: cur }, { role: "typing" }]);
     setFloatLoading(true);
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/movie-chat`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
-        body: JSON.stringify({ message: cur }),
-      });
+      const res  = await fetch(`${API}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
       const data = await res.json();
       const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
       setFloatMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
@@ -233,12 +225,13 @@ export default function ChatPage() {
     } finally { setFloatLoading(false); }
   };
 
+  // ── DF ──
   const makeDfDebounce = (value, setter, showSetter, activeSetter, debounceTimer) => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     if (value.trim().length < 2) { setter([]); showSetter(false); return; }
     debounceTimer.current = setTimeout(async () => {
       try {
-        const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/search?query=${encodeURIComponent(value.trim())}`);
+        const res  = await fetch(`${API}/api/movies/search?query=${encodeURIComponent(value.trim())}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 5);
         setter(results); showSetter(results.length > 0); activeSetter(-1);
@@ -262,10 +255,7 @@ export default function ChatPage() {
     if (!dfMovieA.trim() || !dfMovieB.trim() || dfLoading) return;
     setDfLoading(true); setDfResult(null); setDfError("");
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/double-feature`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ movieA: dfMovieA.trim(), movieB: dfMovieB.trim() }),
-      });
+      const res  = await fetch(`${API}/api/chat/double-feature`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movieA: dfMovieA.trim(), movieB: dfMovieB.trim() }) });
       const data = await res.json();
       if (data.error) { setDfError(data.error); return; }
       setDfResult(data);
@@ -285,6 +275,7 @@ export default function ChatPage() {
     } else if (e.key === "Escape") { showSetter(false); setActive(-1); }
   };
 
+  // ── Cinema ──
   const extractDominantColor = (imageUrl) => new Promise((resolve) => {
     if (!imageUrl) { resolve("201,162,39"); return; }
     const img = new Image(); img.crossOrigin = "anonymous";
@@ -317,8 +308,9 @@ export default function ChatPage() {
     setCinemaMode(true); document.body.style.overflow = "hidden";
   };
   const exitCinema = () => { setCinemaMode(false); document.body.style.overflow = ""; };
-  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); };
+  const closeModal = () => { exitCinema(); setSelectedMovie(null); setInsight(""); setAnimatedInsight(""); };
 
+  // ── Main autocomplete ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = message.trim();
@@ -326,7 +318,7 @@ export default function ChatPage() {
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/search?query=${encodeURIComponent(trimmed)}`);
+        const res  = await fetch(`${API}/api/movies/search?query=${encodeURIComponent(trimmed)}`);
         const data = await res.json();
         const results = (Array.isArray(data) ? data : []).filter(m => m.poster_path).slice(0, 6);
         setSuggestions(results); setShowSuggestions(results.length > 0); setActiveIndex(-1);
@@ -359,35 +351,94 @@ export default function ChatPage() {
     setActiveMoodIdx(idx); await new Promise(r => setTimeout(r, 180)); setActiveMoodIdx(null); sendMessage(mood.query);
   };
 
-  const scrollRow = (dir) => {
-    if (!rowRef.current) return;
-    const { scrollLeft, clientWidth } = rowRef.current;
-    rowRef.current.scrollTo({ left: dir === "left" ? scrollLeft - clientWidth * 0.75 : scrollLeft + clientWidth * 0.75, behavior: "smooth" });
+  // ── Scroll helpers — accepts any rowRef ──
+  const scrollRow = (dir, ref = rowRef) => {
+    if (!ref.current) return;
+    const { scrollLeft, clientWidth } = ref.current;
+    ref.current.scrollTo({ left: dir === "left" ? scrollLeft - clientWidth * 0.75 : scrollLeft + clientWidth * 0.75, behavior: "smooth" });
   };
 
+  // ── Auto-scroll: trending ──
   useEffect(() => {
     if (isHovered || trending.length === 0) return;
     const id = setInterval(() => {
       if (!rowRef.current) return;
       const { scrollLeft, clientWidth, scrollWidth } = rowRef.current;
       if (scrollLeft + clientWidth >= scrollWidth - 10) rowRef.current.scrollTo({ left: 0, behavior: "smooth" });
-      else scrollRow("right");
+      else scrollRow("right", rowRef);
     }, 3400);
     return () => clearInterval(id);
   }, [isHovered, trending]);
 
+  // ── Auto-scroll: popular ──
   useEffect(() => {
-    const go = (id) => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: "smooth" }); };
+    if (popularHovered || popular.length === 0) return;
+    const id = setInterval(() => {
+      if (!popularRowRef.current) return;
+      const { scrollLeft, clientWidth, scrollWidth } = popularRowRef.current;
+      if (scrollLeft + clientWidth >= scrollWidth - 10) popularRowRef.current.scrollTo({ left: 0, behavior: "smooth" });
+      else scrollRow("right", popularRowRef);
+    }, 3700);
+    return () => clearInterval(id);
+  }, [popularHovered, popular]);
+
+  // ── Auto-scroll: top rated ──
+  useEffect(() => {
+    if (topRatedHovered || topRated.length === 0) return;
+    const id = setInterval(() => {
+      if (!topRatedRowRef.current) return;
+      const { scrollLeft, clientWidth, scrollWidth } = topRatedRowRef.current;
+      if (scrollLeft + clientWidth >= scrollWidth - 10) topRatedRowRef.current.scrollTo({ left: 0, behavior: "smooth" });
+      else scrollRow("right", topRatedRowRef);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [topRatedHovered, topRated]);
+
+  // ── Auto-scroll: now playing ──
+  useEffect(() => {
+    if (nowPlayingHovered || nowPlaying.length === 0) return;
+    const id = setInterval(() => {
+      if (!nowPlayingRowRef.current) return;
+      const { scrollLeft, clientWidth, scrollWidth } = nowPlayingRowRef.current;
+      if (scrollLeft + clientWidth >= scrollWidth - 10) nowPlayingRowRef.current.scrollTo({ left: 0, behavior: "smooth" });
+      else scrollRow("right", nowPlayingRowRef);
+    }, 3600);
+    return () => clearInterval(id);
+  }, [nowPlayingHovered, nowPlaying]);
+
+  // ── Scroll to latest msg ──
+  useEffect(() => {
+    const go = (id) => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 140, behavior: "smooth" }); };
     if (loading) go("typing-dots");
     if (!loading && messages.length > 0) setTimeout(() => go(`msg-${messages.length - 1}`), 160);
   }, [loading, messages.length]);
 
+  // ── Fetch sections ──
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/movies/trending`)
-      .then(r => r.json())
-      .then(d => { setTrending(d.movies || []); setTrendingLoading(false); })
-      .catch(() => setTrendingLoading(false));
+    fetch(`${API}/api/movies/trending`)
+      .then(r => r.json()).then(d => { setTrending(d.movies || []); setTrendingLoading(false); }).catch(() => setTrendingLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetch(`${API}/api/movies/popular`)
+      .then(r => r.json()).then(d => { setPopular(d.movies || []); setPopularLoading(false); }).catch(() => setPopularLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API}/api/movies/top-rated`)
+      .then(r => r.json()).then(d => { setTopRated(d.movies || []); setTopRatedLoading(false); }).catch(() => setTopRatedLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API}/api/movies/now-playing`)
+      .then(r => r.json()).then(d => { setNowPlaying(d.movies || []); setNowPlayingLoading(false); }).catch(() => setNowPlayingLoading(false));
+  }, []);
+
+  // ── NEW: Fetch insight automatically when a movie is selected ──
+  useEffect(() => {
+    if (!selectedMovie) return;
+    fetchInsight(selectedMovie.title);
+  }, [selectedMovie]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const typeText = async (text, setter) => {
     setter(""); let cur = "";
@@ -397,7 +448,7 @@ export default function ChatPage() {
   const fetchInsight = async (title) => {
     setInsight(""); setAnimatedInsight(""); setInsightLoading(true);
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/movie-insight`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+      const res  = await fetch(`${API}/api/chat/movie-insight`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
       const data = await res.json();
       await typeText(data.insight || data.message || "No AI insight available.", setAnimatedInsight);
       setInsight(data.insight || "");
@@ -413,7 +464,7 @@ export default function ChatPage() {
     setLoading(true);
     await new Promise(r => setTimeout(r, 50));
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
+      const res  = await fetch(`${API}/api/chat/movie-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ message: cur }) });
       const data = await res.json();
       const reply = data.reply || data.query?.reply || data.message || "Here are some recommendations!";
       setMessages(prev => [...prev.filter(m => m.role !== "typing"), { role: "ai", text: "", movies: data.results || [] }]);
@@ -435,6 +486,7 @@ export default function ChatPage() {
         : p
     ) ?? "";
 
+  // ── Skeleton Card ──
   const SkeletonCard = ({ variant }) => {
     const isRow = variant === "row";
     return isRow ? (
@@ -458,7 +510,7 @@ export default function ChatPage() {
     );
   };
 
-  // ── CHANGE 1: Removed fetchInsight() from MovieCard onClick ──
+  // ── Movie Card ──
   const MovieCard = ({ movie, variant }) => {
     const isRow = variant === "row";
     return (
@@ -499,7 +551,6 @@ export default function ChatPage() {
     );
   };
 
-  // ── CHANGE 2: Removed fetchInsight() from FloatMovieCard onClick ──
   const FloatMovieCard = ({ movie }) => (
     <div className="float-movie-card"
       onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}>
@@ -526,15 +577,12 @@ export default function ChatPage() {
     </div>
   );
 
+  // ── Mount guard ──
+  if (!mounted) return <div style={{ minHeight: "100vh", background: "#080808" }} />;
 
-  // Add this block right before your main return
-  if (!mounted) {
-    // This renders a sleek, solid dark background for the split-second
-    // before your styles are ready, completely hiding the trash UI.
-    return <div style={{ minHeight: '100vh', background: '#080808' }} />;
-  }
-
-
+  /* ══════════════════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════════════════ */
   return (
     <div className="app-root">
       <style jsx global>{`
@@ -546,13 +594,16 @@ export default function ChatPage() {
           --text: rgba(255,255,255,0.85); --text-muted: rgba(255,255,255,0.38);
           --border: rgba(255,255,255,0.07); --gold-border: rgba(201,162,39,0.25);
           --radius-card: 12px; --radius-modal: 22px;
+          --nav-h: 64px;
         }
         html { scroll-behavior: smooth; }
         body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #0e0e0e; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(var(--gold), var(--gold-dk)); border-radius: 99px; }
-        .grain { position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.03; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 120px; }
+        .grain { position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.03;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-size: 120px; }
         .app-root { min-height: 100vh; background: var(--bg); color: white; overflow-x: hidden; }
 
         /* ═══ SKELETON ═══ */
@@ -568,21 +619,100 @@ export default function ChatPage() {
         .skeleton-grid-wrap > div:nth-child(2) .skeleton { animation-delay: 0.12s; }
         .skeleton-grid-wrap > div:nth-child(3) .skeleton { animation-delay: 0.24s; }
         .skeleton-grid-wrap > div:nth-child(4) .skeleton { animation-delay: 0.36s; }
-        .skeleton-section-title { height: 23px; width: 160px; border-radius: 6px; margin-bottom: 26px; }
+        .skeleton-section-title { height: 23px; width: 160px; border-radius: 6px; }
         .typing-skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 18px; margin-top: 18px; opacity: 0.6; }
 
+        /* ═══════════════════════════════════════════
+           NEW: TOP NAVBAR
+        ═══════════════════════════════════════════ */
+        .topnav {
+          position: sticky; top: 0; z-index: 300; height: var(--nav-h);
+          background: rgba(8,8,8,0.96);
+          backdrop-filter: blur(32px) saturate(180%);
+          -webkit-backdrop-filter: blur(32px) saturate(180%);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .topnav-inner {
+          max-width: 1200px; margin: 0 auto; padding: 0 48px;
+          height: 100%; display: flex; align-items: center; justify-content: space-between;
+        }
+        .topnav-logo { display: flex; align-items: center; gap: 10px; cursor: default; }
+        .topnav-logo-img {
+          height: 38px;
+          width: auto;
+          object-fit: contain;
+          cursor: pointer;
+          filter: drop-shadow(0 0 10px rgba(245,200,66,0.3));
+          animation: iconGlow 3s ease-in-out infinite;
+        }
+        @keyframes iconGlow {
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(245,200,66,0.4)); }
+          50%       { filter: drop-shadow(0 0 14px rgba(245,200,66,0.7)); }
+        }
+        .topnav-right { display: flex; align-items: center; gap: 10px; }
+
+        /* Nav user button (logged in) */
+        .nav-user-btn {
+          display: flex; align-items: center; gap: 8px;
+          padding: 6px 14px 6px 7px; border-radius: 99px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          cursor: pointer;
+          transition: background 0.22s, border-color 0.22s, transform 0.22s, box-shadow 0.22s;
+          color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .nav-user-btn:hover {
+          background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.35);
+          color: var(--gold-lt); transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(201,162,39,0.15);
+        }
+        .nav-avatar {
+          width: 30px; height: 30px; border-radius: 50%;
+          background: linear-gradient(135deg, var(--gold-lt), var(--gold));
+          display: flex; align-items: center; justify-content: center;
+          font-size: 12px; font-weight: 800; color: #0a0800; flex-shrink: 0;
+          box-shadow: 0 0 0 2px rgba(201,162,39,0.25);
+        }
+        .nav-username { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Nav sign in button (not logged in) */
+        .nav-signin-btn {
+          display: flex; align-items: center; gap: 7px;
+          padding: 9px 20px; border-radius: 99px;
+          background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%);
+          border: none; cursor: pointer;
+          color: #0a0800; font-size: 13px; font-weight: 700;
+          font-family: 'DM Sans', sans-serif; letter-spacing: 0.02em;
+          transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        .nav-signin-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 28px rgba(201,162,39,0.45);
+        }
+
         /* ═══ HERO ═══ */
-        .hero { position: relative; background: linear-gradient(180deg, #0e0900 0%, var(--bg) 100%); padding: 60px 0 0; border-bottom: 1px solid var(--border); }
+        .hero {
+          position: relative;
+          background: linear-gradient(180deg, #0e0900 0%, var(--bg) 100%);
+          padding: 52px 0 0; border-bottom: 1px solid var(--border);
+        }
         .hero-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent 0%, var(--gold) 28%, var(--gold-lt) 50%, var(--gold) 72%, transparent 100%); }
         .hero-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
         .hero-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; opacity: 0.85; animation: fadeUp 0.65s ease both; }
-        .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(42px, 5.5vw, 70px); font-weight: 900; line-height: 1.04; letter-spacing: -0.025em; margin-bottom: 12px; background: linear-gradient(135deg, #fff 0%, #e8d58a 55%, var(--gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: fadeUp 0.65s 0.1s ease both; }
-        .hero-sub { font-size: 15px; color: var(--text-muted); font-weight: 300; margin-bottom: 48px; animation: fadeUp 0.65s 0.2s ease both; }
+        .hero-title { font-family: 'Playfair Display', serif; font-size: clamp(38px, 5.5vw, 66px); font-weight: 900; line-height: 1.04; letter-spacing: -0.025em; margin-bottom: 12px; background: linear-gradient(135deg, #fff 0%, #e8d58a 55%, var(--gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: fadeUp 0.65s 0.1s ease both; }
+        .hero-sub { font-size: 15px; color: var(--text-muted); font-weight: 300; margin-bottom: 44px; animation: fadeUp 0.65s 0.2s ease both; }
 
-        /* ═══ SEARCH ═══ */
-        .searchbar { position: sticky; top: 0; z-index: 200; background: rgba(8,8,8,0.92); backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%); border-bottom: 1px solid var(--border); padding: 13px 0; }
+        /* ═══ SEARCH — now sticky below navbar ═══ */
+        .searchbar {
+          position: sticky; top: var(--nav-h); z-index: 200;
+          background: rgba(8,8,8,0.92);
+          backdrop-filter: blur(28px) saturate(160%);
+          -webkit-backdrop-filter: blur(28px) saturate(160%);
+          border-bottom: 1px solid var(--border); padding: 13px 0;
+        }
         .searchbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; display: flex; align-items: center; gap: 12px; }
-        .search-wrap { position: relative; flex-grow: 1; max-width: 540px; }
+        .search-wrap { position: relative; flex-grow: 1; max-width: 600px; }
         .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); opacity: 0.7; display: flex; align-items: center; pointer-events: none; z-index: 2; }
         .search-input { width: 100%; padding: 13px 16px 13px 46px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: white; font-size: 15px; font-family: 'DM Sans', sans-serif; transition: border-color 0.25s, box-shadow 0.25s; }
         .search-input::placeholder { color: var(--text-muted); }
@@ -591,24 +721,6 @@ export default function ChatPage() {
         .send-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(201,162,39,0.38); }
         .send-btn:active:not(:disabled) { transform: translateY(0); }
         .send-btn:disabled { opacity: 0.52; cursor: not-allowed; }
-
-        .user-btn {
-          height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.04); cursor: pointer;
-          display: flex; align-items: center; gap: 8px;
-          transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-          white-space: nowrap; flex-shrink: 0;
-          color: rgba(255,255,255,0.6); font-family: 'DM Sans', sans-serif;
-          font-size: 13px; font-weight: 600; padding: 0 14px;
-        }
-        .user-btn:hover { background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.35); color: var(--gold-lt); }
-        .user-avatar {
-          width: 26px; height: 26px; border-radius: 50%;
-          background: linear-gradient(135deg, var(--gold-lt), var(--gold));
-          display: flex; align-items: center; justify-content: center;
-          font-size: 11px; font-weight: 800; color: #0a0800; flex-shrink: 0;
-        }
-        .signin-btn { color: rgba(255,255,255,0.5); }
 
         /* ═══ AUTOCOMPLETE ═══ */
         .autocomplete-dropdown { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #0f0f0f; border: 1px solid rgba(201,162,39,0.22); border-radius: 14px; overflow: hidden; z-index: 999; box-shadow: 0 24px 60px rgba(0,0,0,0.88); animation: dropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -631,6 +743,7 @@ export default function ChatPage() {
         .section-label { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
         .section-bar { width: 4px; height: 24px; flex-shrink: 0; background: linear-gradient(180deg, var(--gold-lt), var(--gold-dk)); border-radius: 2px; }
         .section-title { font-family: 'Playfair Display', serif; font-size: 23px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+        .section-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); opacity: 0.55; margin-bottom: 5px; }
 
         /* ═══ MOOD BOARD ═══ */
         .moodboard-wrap { margin-bottom: 60px; animation: fadeUp 0.55s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -692,8 +805,8 @@ export default function ChatPage() {
         .df-result-reason { font-size: 14px; line-height: 1.75; color: rgba(255,255,255,0.58); font-weight: 300; font-style: italic; border-left: 2px solid rgba(201,162,39,0.3); padding-left: 14px; }
         .df-error { padding: 12px 16px; background: rgba(220,60,60,0.08); border: 1px solid rgba(220,60,60,0.18); border-radius: 10px; color: rgba(255,100,100,0.8); font-size: 13px; margin-top: 16px; }
 
-        /* ═══ TRENDING ═══ */
-        .trending-wrap { margin-bottom: 66px; }
+        /* ═══ SECTION ROWS (trending + new sections) ═══ */
+        .section-wrap { margin-bottom: 60px; }
         .trending-row-container { position: relative; }
         .row-fade-left, .row-fade-right { position: absolute; top: 0; bottom: 0; width: 80px; z-index: 10; pointer-events: none; }
         .row-fade-left  { left: 0;  background: linear-gradient(to right, var(--bg) 15%, transparent); }
@@ -732,14 +845,14 @@ export default function ChatPage() {
         .grid-card-foot  { display: flex; justify-content: space-between; align-items: center; }
         .grid-card-year  { font-size: 11px; color: var(--text-muted); }
 
-        /* ═══ DIVIDER ═══ */
+        /* ═══ SECTION DIVIDER ═══ */
         .section-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent); margin-bottom: 52px; }
 
         /* ═══ MESSAGES ═══ */
         .msg-enter { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-        .user-row { text-align: right; margin-bottom: 20px; scroll-margin-top: 130px; }
+        .user-row { text-align: right; margin-bottom: 20px; scroll-margin-top: 140px; }
         .user-bubble { display: inline-block; background: linear-gradient(135deg, #1a1200, #271d00); border: 1px solid rgba(201,162,39,0.28); color: var(--gold-lt); padding: 11px 18px; border-radius: 18px 18px 4px 18px; font-size: 15px; font-weight: 500; box-shadow: 0 4px 18px rgba(201,162,39,0.1); }
-        .typing-row { margin-bottom: 20px; scroll-margin-top: 130px; }
+        .typing-row { margin-bottom: 20px; scroll-margin-top: 140px; }
         .typing-bubble { display: inline-block; background: rgba(16,12,0,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(201,162,39,0.1); padding: 16px 22px; border-radius: 14px; }
         .typing-dots { display: flex; gap: 6px; align-items: center; height: 14px; }
         .typing-dots span { width: 7px; height: 7px; background: var(--gold); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
@@ -747,7 +860,7 @@ export default function ChatPage() {
         .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
         .typing-dots span:nth-child(3) { animation-delay: 0s; }
         @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-5px); opacity: 1; } }
-        .ai-box { background: linear-gradient(160deg, rgba(17,17,17,0.98), rgba(10,10,10,0.99)); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); padding: 28px 30px; margin-bottom: 40px; scroll-margin-top: 130px; }
+        .ai-box { background: linear-gradient(160deg, rgba(17,17,17,0.98), rgba(10,10,10,0.99)); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); padding: 28px 30px; margin-bottom: 40px; scroll-margin-top: 140px; }
         .ai-label { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; }
         .ai-dot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, var(--gold), var(--gold-dk)); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #000; }
         .ai-label-text { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; }
@@ -779,6 +892,11 @@ export default function ChatPage() {
         .modal-year { color: var(--text-muted); font-size: 13px; }
         .modal-overview { font-size: 15px; line-height: 1.82; color: rgba(255,255,255,0.56); font-weight: 300; margin-bottom: 24px; transition: opacity 0.4s ease; }
         .modal-overlay.cinema-active .modal-overview { opacity: 0.7; }
+        .modal-actions { display: flex; gap: 10px; margin-bottom: 22px; }
+        .modal-action-btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.22s, color 0.22s, border-color 0.22s, transform 0.22s; }
+        .modal-action-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); transform: translateY(-1px); }
+        .modal-action-btn.active-fav { background: rgba(220,60,80,0.12); border-color: rgba(220,60,80,0.35); color: #f47a8a; }
+        .modal-action-btn.active-watch { background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.35); color: var(--gold-lt); }
         .insight-block { background: linear-gradient(135deg, rgba(201,162,39,0.055), rgba(139,105,20,0.03)); border: 1px solid rgba(201,162,39,0.18); border-left: 3px solid var(--gold); padding: 20px 22px; border-radius: 0 12px 12px 0; }
         .insight-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
         .insight-label { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 0.13em; text-transform: uppercase; }
@@ -786,95 +904,9 @@ export default function ChatPage() {
         .insight-loading-text { color: var(--text-muted); font-style: italic; font-size: 13px; }
         .insight-text { font-size: 14px; line-height: 1.78; color: rgba(255,255,255,0.62); font-weight: 300; }
 
-        .modal-actions {
-          display: flex; gap: 10px; margin-bottom: 22px;
-        }
-        .modal-action-btn {
-          display: flex; align-items: center; gap: 7px;
-          padding: 9px 16px; border-radius: 9px;
-          border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.04);
-          color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600;
-          font-family: 'DM Sans', sans-serif; cursor: pointer;
-          transition: background 0.22s, color 0.22s, border-color 0.22s, transform 0.22s;
-          letter-spacing: 0.02em;
-        }
-        .modal-action-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); transform: translateY(-1px); }
-        .modal-action-btn.active-fav { background: rgba(220,60,80,0.12); border-color: rgba(220,60,80,0.35); color: #f47a8a; }
-        .modal-action-btn.active-fav:hover { background: rgba(220,60,80,0.18); }
-        .modal-action-btn.active-watch { background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.35); color: var(--gold-lt); }
-        .modal-action-btn.active-watch:hover { background: rgba(201,162,39,0.16); }
-
-        /* ═══════════════════════════════════════════════════════
-           NEW: AI ANALYSE BUTTON
-        ═══════════════════════════════════════════════════════ */
-        .ai-analyse-wrap {
-          margin-bottom: 4px;
-        }
-        .ai-analyse-btn {
-          position: relative; overflow: hidden;
-          display: inline-flex; align-items: center; gap: 10px;
-          padding: 13px 24px; border-radius: 12px;
-          border: 1px solid rgba(201,162,39,0.35);
-          background: linear-gradient(135deg, rgba(201,162,39,0.08) 0%, rgba(139,105,20,0.05) 100%);
-          color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 700;
-          font-family: 'DM Sans', sans-serif; letter-spacing: 0.06em;
-          text-transform: uppercase; cursor: pointer;
-          transition: background 0.3s ease, border-color 0.3s ease,
-                      color 0.3s ease, transform 0.25s ease, box-shadow 0.3s ease;
-          width: 100%;
-          justify-content: center;
-        }
-        .ai-analyse-btn::before {
-          content: '';
-          position: absolute; inset: 0;
-          background: linear-gradient(135deg, rgba(245,200,66,0.12) 0%, transparent 60%);
-          opacity: 0;
-          transition: opacity 0.3s ease;
-          pointer-events: none;
-        }
-        .ai-analyse-btn:hover:not(:disabled) {
-          background: linear-gradient(135deg, rgba(201,162,39,0.14) 0%, rgba(139,105,20,0.08) 100%);
-          border-color: rgba(201,162,39,0.6);
-          color: var(--gold-lt);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 28px rgba(201,162,39,0.18), 0 0 0 1px rgba(201,162,39,0.12);
-        }
-        .ai-analyse-btn:hover::before { opacity: 1; }
-        .ai-analyse-btn:active:not(:disabled) { transform: translateY(0); }
-        .ai-analyse-btn:disabled {
-          opacity: 0.45; cursor: not-allowed; transform: none;
-        }
-        .ai-analyse-icon {
-          display: flex; align-items: center; justify-content: center;
-          width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-          background: linear-gradient(135deg, rgba(245,200,66,0.18), rgba(201,162,39,0.1));
-          border: 1px solid rgba(201,162,39,0.25);
-          transition: background 0.3s ease, border-color 0.3s ease;
-        }
-        .ai-analyse-btn:hover .ai-analyse-icon {
-          background: linear-gradient(135deg, rgba(245,200,66,0.28), rgba(201,162,39,0.18));
-          border-color: rgba(201,162,39,0.45);
-        }
-        .ai-analyse-label { flex: 1; text-align: left; }
-        .ai-analyse-sub {
-          font-size: 10px; color: rgba(255,255,255,0.32); font-weight: 400;
-          letter-spacing: 0.04em; text-transform: none; margin-top: 1px;
-          display: block;
-        }
-        .ai-analyse-btn:hover .ai-analyse-sub { color: rgba(245,200,66,0.5); }
-        .ai-analyse-arrow {
-          font-size: 16px; color: rgba(201,162,39,0.4);
-          transition: transform 0.25s ease, color 0.25s ease;
-          flex-shrink: 0;
-        }
-        .ai-analyse-btn:hover .ai-analyse-arrow {
-          transform: translateX(3px); color: var(--gold-lt);
-        }
-
-        /* ═══ FLOAT BUTTON + DRAWER ═══ */
-        .float-btn { position: fixed; bottom: 32px; right: 32px; z-index: 800; width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-lt), var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(201,162,39,0.45), 0 0 0 0 rgba(201,162,39,0.3); transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease; animation: floatPulse 3s ease-in-out infinite; }
-        .float-btn:hover { transform: scale(1.1) translateY(-3px); box-shadow: 0 16px 44px rgba(201,162,39,0.55), 0 0 0 8px rgba(201,162,39,0.08); animation: none; }
+        /* ═══ FLOAT ═══ */
+        .float-btn { position: fixed; bottom: 32px; right: 32px; z-index: 800; width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-lt), var(--gold)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(201,162,39,0.45); transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease; animation: floatPulse 3s ease-in-out infinite; }
+        .float-btn:hover { transform: scale(1.1) translateY(-3px); box-shadow: 0 16px 44px rgba(201,162,39,0.55); animation: none; }
         .float-btn.open { transform: scale(0.92); animation: none; box-shadow: 0 4px 16px rgba(201,162,39,0.3); }
         @keyframes floatPulse { 0%, 100% { box-shadow: 0 8px 32px rgba(201,162,39,0.45), 0 0 0 0 rgba(201,162,39,0.3); } 50% { box-shadow: 0 8px 32px rgba(201,162,39,0.45), 0 0 0 10px rgba(201,162,39,0); } }
         .float-badge { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%; background: #f5c842; border: 2px solid #080808; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #0a0800; animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
@@ -920,27 +952,18 @@ export default function ChatPage() {
         .float-send-btn:hover:not(:disabled) { transform: scale(1.08); }
         .float-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .auth-overlay {
-          position: fixed; inset: 0; z-index: 1100;
-          background: rgba(0,0,0,0.88);
-          display: flex; align-items: center; justify-content: center;
-          backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-          animation: fadeIn 0.2s ease both; padding: 20px;
-        }
-        .auth-modal {
-          background: linear-gradient(160deg, #111008, #0a0a0a);
-          border: 1px solid rgba(201,162,39,0.2); border-radius: 22px;
-          padding: 40px 36px; max-width: 420px; width: 100%;
-          box-shadow: 0 48px 96px rgba(0,0,0,0.9);
-          animation: modalIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
-          position: relative;
-        }
-        .auth-logo {
-          width: 46px; height: 46px; border-radius: 14px; margin: 0 auto 20px;
-          background: linear-gradient(135deg, var(--gold-lt), var(--gold));
-          display: flex; align-items: center; justify-content: center;
-          font-size: 20px; color: #0a0800;
-        }
+        /* ═══ AUTH MODAL ═══ */
+        .auth-overlay { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: fadeIn 0.2s ease both; padding: 20px; }
+        .auth-modal { background: linear-gradient(160deg, #111008, #0a0a0a); border: 1px solid rgba(201,162,39,0.2); border-radius: 22px; padding: 40px 36px; max-width: 420px; width: 100%; box-shadow: 0 48px 96px rgba(0,0,0,0.9); animation: modalIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both; position: relative; }
+        .auth-logo-img { 
+                  height: 56px; 
+                  width: auto; 
+                  margin: 0 auto 20px; 
+                  display: block; 
+                  object-fit: contain;
+                  filter: drop-shadow(0 4px 16px rgba(201,162,39,0.25));
+                }        
+                  
         .auth-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; }
         .auth-sub { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 26px; line-height: 1.5; }
         .auth-tabs { display: flex; background: rgba(255,255,255,0.04); border-radius: 10px; padding: 4px; gap: 4px; margin-bottom: 24px; }
@@ -952,55 +975,20 @@ export default function ChatPage() {
         .auth-input::placeholder { color: rgba(255,255,255,0.18); }
         .auth-input:focus { outline: none; border-color: rgba(201,162,39,0.45); box-shadow: 0 0 0 3px rgba(201,162,39,0.07); }
         .auth-error { padding: 10px 14px; background: rgba(220,60,60,0.08); border: 1px solid rgba(220,60,60,0.2); border-radius: 9px; color: rgba(255,110,110,0.85); font-size: 13px; margin-bottom: 16px; }
-        .auth-submit {
-          width: 100%; padding: 14px; border-radius: 11px; margin-top: 4px;
-          border: 1px solid rgba(201,162,39,0.45);
-          background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%);
-          color: #0a0800; font-weight: 700; font-size: 14px;
-          font-family: 'DM Sans', sans-serif; letter-spacing: 0.04em;
-          cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s;
-        }
+        .auth-submit { width: 100%; padding: 14px; border-radius: 11px; margin-top: 4px; border: 1px solid rgba(201,162,39,0.45); background: linear-gradient(135deg, var(--gold-lt) 0%, var(--gold) 100%); color: #0a0800; font-weight: 700; font-size: 14px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s; }
         .auth-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(201,162,39,0.38); }
         .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .lists-backdrop {
-          position: fixed; inset: 0; z-index: 590;
-          background: rgba(0,0,0,0.55);
-          animation: fadeIn 0.25s ease both;
-        }
-        .lists-drawer {
-          position: fixed; top: 0; right: 0; bottom: 0;
-          width: 340px; z-index: 600;
-          background: linear-gradient(160deg, #0f0e0a, #0a0a0a);
-          border-left: 1px solid rgba(201,162,39,0.18);
-          display: flex; flex-direction: column;
-          box-shadow: -24px 0 60px rgba(0,0,0,0.85);
-          animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
+        /* ═══ LISTS DRAWER ═══ */
+        .lists-backdrop { position: fixed; inset: 0; z-index: 590; background: rgba(0,0,0,0.55); animation: fadeIn 0.25s ease both; }
+        .lists-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; z-index: 600; background: linear-gradient(160deg, #0f0e0a, #0a0a0a); border-left: 1px solid rgba(201,162,39,0.18); display: flex; flex-direction: column; box-shadow: -24px 0 60px rgba(0,0,0,0.85); animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .lists-header {
-          padding: 20px 20px 16px;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-          display: flex; align-items: flex-start; justify-content: space-between;
-          flex-shrink: 0;
-        }
+        .lists-header { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
         .lists-user-name { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 3px; }
         .lists-user-email { font-size: 12px; color: var(--text-muted); }
         .lists-header-actions { display: flex; gap: 6px; margin-top: 2px; }
-        .lists-tabs {
-          display: flex; gap: 0; flex-shrink: 0;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .lists-tab {
-          flex: 1; padding: 14px 12px;
-          border: none; background: transparent;
-          color: rgba(255,255,255,0.35); font-size: 12px; font-weight: 700;
-          font-family: 'DM Sans', sans-serif; letter-spacing: 0.05em;
-          text-transform: uppercase; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 7px;
-          border-bottom: 2px solid transparent;
-          transition: color 0.2s, border-color 0.2s;
-        }
+        .lists-tabs { display: flex; gap: 0; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .lists-tab { flex: 1; padding: 14px 12px; border: none; background: transparent; color: rgba(255,255,255,0.35); font-size: 12px; font-weight: 700; font-family: 'DM Sans', sans-serif; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
         .lists-tab.active { color: var(--gold-lt); border-bottom-color: var(--gold); }
         .lists-tab:hover:not(.active) { color: rgba(255,255,255,0.6); }
         .lists-body { flex: 1; overflow-y: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: rgba(201,162,39,0.15) transparent; }
@@ -1010,12 +998,7 @@ export default function ChatPage() {
         .lists-empty p { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.4); }
         .lists-empty span { font-size: 12px; color: var(--text-muted); }
         .lists-grid { display: flex; flex-direction: column; gap: 10px; }
-        .lists-card {
-          display: flex; align-items: center; gap: 12px;
-          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 12px; padding: 10px; cursor: pointer;
-          transition: background 0.2s, border-color 0.2s, transform 0.2s;
-        }
+        .lists-card { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 10px; cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.2s; }
         .lists-card:hover { background: rgba(201,162,39,0.06); border-color: rgba(201,162,39,0.2); transform: translateX(-3px); }
         .lists-card-poster { width: 42px; height: 63px; border-radius: 7px; object-fit: cover; flex-shrink: 0; background: #1a1a1a; }
         .lists-card-info { flex: 1; overflow: hidden; }
@@ -1028,9 +1011,10 @@ export default function ChatPage() {
           .mood-grid { grid-template-columns: repeat(2, 1fr); }
           .df-inputs { grid-template-columns: 1fr; }
           .df-connector { flex-direction: row; padding-top: 0; }
+          .topnav-logo-text { display: none; }
         }
         @media (max-width: 768px) {
-          .hero-inner, .searchbar-inner, .main { padding-left: 20px; padding-right: 20px; }
+          .hero-inner, .searchbar-inner, .main, .topnav-inner { padding-left: 20px; padding-right: 20px; }
           .modal-content { padding: 24px; }
           .movies-grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
           .typing-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1042,51 +1026,61 @@ export default function ChatPage() {
           .float-drawer { width: calc(100vw - 40px); right: 20px; bottom: 96px; }
           .float-btn { bottom: 24px; right: 20px; }
           .lists-drawer { width: 100%; }
-          .signin-btn span { display: none; }
-          
-          
-          /* ═══ MOBILE TAPS & SPACING FIX ═══ */
-          .row-arrow, .row-fade-left, .row-fade-right { 
-            display: none; 
-          }
-          .movie-row { 
-            padding: 14px 20px 22px; 
-            gap: 12px; /* Shrinking the gap slightly to help fit 3 cards */
-          }
-
-          /* ═══ 3 CARDS ON MOBILE FIX ═══ */
-          /* Overriding the inline React styles to make cards smaller */
-          .trending-card, .skeleton-row-wrap > div {
-            min-width: 104px !important;
-            width: 104px !important;
-          }
-          
-          /* Resize the posters while keeping the 2:3 aspect ratio */
-          .row-poster, .skeleton-row-wrap .skeleton:first-child {
-            width: 104px !important;
-            height: 156px !important; 
-          }
-
-          /* Scale down the title slightly so it doesn't wrap awkwardly on the smaller card */
-          .trending-card .card-title {
-            font-size: 12px;
-          }
+          .trending-card, .skeleton-row-wrap > div { min-width: 104px !important; width: 104px !important; }
+          .row-poster, .skeleton-row-wrap .skeleton:first-child { width: 104px !important; height: 156px !important; }
+          .trending-card .card-title { font-size: 12px; }
+          .movie-row { padding: 14px 20px 22px; gap: 12px; }
+          .nav-username { display: none; }
         }
       `}</style>
 
       <div className="grain" />
+
+      {/* ══════════════════════════════════════════
+          NEW: TOP NAVIGATION BAR
+      ══════════════════════════════════════════ */}
+      <nav className="topnav">
+        <div className="topnav-inner">
+          {/* Brand */}
+          <div className="topnav-logo">
+            <img src="/logo.png" alt="Logo" className="topnav-logo-img" />
+          </div>
+
+          {/* Auth — right side */}
+          <div className="topnav-right">
+            {authUser ? (
+              <button
+                className="nav-user-btn"
+                onClick={() => { setShowListsDrawer(o => !o); setFloatOpen(false); }}
+              >
+                <div className="nav-avatar">{authUser.name[0].toUpperCase()}</div>
+                <span className="nav-username">{authUser.name.split(" ")[0]}</span>
+                <ChevronDown size={13} strokeWidth={2.5} />
+              </button>
+            ) : (
+              <button
+                className="nav-signin-btn"
+                onClick={() => { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); }}
+              >
+                <User size={14} />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </nav>
 
       {/* ═══════════ HERO ═══════════ */}
       <header className="hero">
         <div className="hero-line" />
         <div className="hero-inner">
           <p className="hero-eyebrow">◈ AI-Powered Discovery</p>
-          <h1 className="hero-title">Smart Movie<br />Explorer</h1>
-          <p className="hero-sub">Discover, explore, and uncover cinematic gems with AI</p>
+          <h1 className="hero-title">TensorFilm</h1>
+          <p className="hero-sub">Movie discovery and cinematic insights</p>
         </div>
       </header>
 
-      {/* ═══════════ STICKY SEARCH ═══════════ */}
+      {/* ═══════════ STICKY SEARCH (search + button only) ═══════════ */}
       <div className="searchbar">
         <div className="searchbar-inner">
           <div className="search-wrap" ref={searchRef}>
@@ -1095,8 +1089,14 @@ export default function ChatPage() {
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </span>
-            <input type="text" className="search-input" placeholder="Ask for movies, genres, moods…"
-              value={message} onChange={e => setMessage(e.target.value)} onKeyDown={handleKeyDown} autoComplete="off" />
+            <input
+              type="text" className="search-input"
+              placeholder="Ask for movies, genres, moods…"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoComplete="off"
+            />
             {showSuggestions && suggestions.length > 0 && (
               <div className="autocomplete-dropdown">
                 {suggestions.map((movie, i) => (
@@ -1119,18 +1119,6 @@ export default function ChatPage() {
               </div>
             )}
           </div>
-
-          {authUser ? (
-            <button className="user-btn" onClick={() => { setShowListsDrawer(o => !o); setFloatOpen(false); }}>
-              <div className="user-avatar">{authUser.name[0].toUpperCase()}</div>
-              {authUser.name.split(" ")[0]}
-            </button>
-          ) : (
-            <button className="user-btn signin-btn" onClick={() => { setShowAuthModal(true); setAuthTab("login"); setFloatOpen(false); }}>
-              <User size={14} /><span>Sign In</span>
-            </button>
-          )}
-
           <button className="send-btn" onClick={() => sendMessage()} disabled={loading}>
             {loading ? "…" : "Search"}
           </button>
@@ -1208,20 +1196,18 @@ export default function ChatPage() {
             {dfLoading && (
               <div className="df-loading" style={{ marginTop: 20 }}>
                 <div className="typing-dots"><span /><span /><span /></div>
-                <span className="df-loading-text">Analyzing the DNA of both films</span>
+                <span className="df-loading-text">Analyzing the DNA of both films…</span>
               </div>
             )}
             {dfError && <div className="df-error">⚠ {dfError}</div>}
             {dfResult && !dfLoading && (
               <div className="df-result">
-                {/* ── CHANGE 3: Removed fetchInsight() from df-result-poster onClick ── */}
                 <div className="df-result-poster"
                   onClick={() => { setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}>
                   <img src={dfResult.movie.poster} alt={dfResult.movie.title} />
                 </div>
                 <div className="df-result-body">
                   <p className="df-result-eyebrow">✦ Your bridge film</p>
-                  {/* ── CHANGE 4: Removed fetchInsight() from df-result-title onClick ── */}
                   <p className="df-result-title"
                     onClick={() => { setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}>
                     {dfResult.movie.title}
@@ -1237,21 +1223,29 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* ── TRENDING ── */}
-        <div className="trending-wrap">
+        {/* ══ HELPER to render a movie section row ══
+            (used for all 4 sections below) */}
+
+        {/* ── TRENDING NOW ── */}
+        <div className="section-wrap">
           <div className="section-label">
             <div className="section-bar" />
-            {trendingLoading ? <div className="skeleton skeleton-section-title" /> : <h2 className="section-title">Trending Now</h2>}
+            <div>
+              <p className="section-eyebrow">◈ This week</p>
+              {trendingLoading
+                ? <div className="skeleton skeleton-section-title" />
+                : <h2 className="section-title">Trending Now</h2>}
+            </div>
           </div>
           {trendingLoading ? (
             <div className="movie-row skeleton-row-wrap" style={{ paddingTop: 14, paddingBottom: 22 }}>
-              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-row-${i}`} variant="row" />)}
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-tr-${i}`} variant="row" />)}
             </div>
           ) : trending.length > 0 ? (
             <div className="trending-row-container" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
               <div className="row-fade-left" /><div className="row-fade-right" />
-              <button className="row-arrow row-arrow-left" onClick={() => scrollRow("left")} aria-label="Scroll left">‹</button>
-              <button className="row-arrow row-arrow-right" onClick={() => scrollRow("right")} aria-label="Scroll right">›</button>
+              <button className="row-arrow row-arrow-left" onClick={() => scrollRow("left", rowRef)} aria-label="Scroll left">‹</button>
+              <button className="row-arrow row-arrow-right" onClick={() => scrollRow("right", rowRef)} aria-label="Scroll right">›</button>
               <div className="movie-row" ref={rowRef}>
                 {trending.map((movie, i) => <MovieCard key={`tr-${i}`} movie={movie} variant="row" />)}
               </div>
@@ -1259,8 +1253,89 @@ export default function ChatPage() {
           ) : null}
         </div>
 
+        {/* ── POPULAR NOW ── */}
+        <div className="section-wrap">
+          <div className="section-label">
+            <div className="section-bar" />
+            <div>
+              <p className="section-eyebrow">◈ Fan favorites</p>
+              {popularLoading
+                ? <div className="skeleton skeleton-section-title" />
+                : <h2 className="section-title">Popular Now</h2>}
+            </div>
+          </div>
+          {popularLoading ? (
+            <div className="movie-row skeleton-row-wrap" style={{ paddingTop: 14, paddingBottom: 22 }}>
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-pop-${i}`} variant="row" />)}
+            </div>
+          ) : popular.length > 0 ? (
+            <div className="trending-row-container" onMouseEnter={() => setPopularHovered(true)} onMouseLeave={() => setPopularHovered(false)}>
+              <div className="row-fade-left" /><div className="row-fade-right" />
+              <button className="row-arrow row-arrow-left" onClick={() => scrollRow("left", popularRowRef)} aria-label="Scroll left">‹</button>
+              <button className="row-arrow row-arrow-right" onClick={() => scrollRow("right", popularRowRef)} aria-label="Scroll right">›</button>
+              <div className="movie-row" ref={popularRowRef}>
+                {popular.map((movie, i) => <MovieCard key={`pop-${i}`} movie={movie} variant="row" />)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* ── TOP RATED ── */}
+        <div className="section-wrap">
+          <div className="section-label">
+            <div className="section-bar" />
+            <div>
+              <p className="section-eyebrow">◈ Critically acclaimed</p>
+              {topRatedLoading
+                ? <div className="skeleton skeleton-section-title" />
+                : <h2 className="section-title">Top Rated All Time</h2>}
+            </div>
+          </div>
+          {topRatedLoading ? (
+            <div className="movie-row skeleton-row-wrap" style={{ paddingTop: 14, paddingBottom: 22 }}>
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-tr2-${i}`} variant="row" />)}
+            </div>
+          ) : topRated.length > 0 ? (
+            <div className="trending-row-container" onMouseEnter={() => setTopRatedHovered(true)} onMouseLeave={() => setTopRatedHovered(false)}>
+              <div className="row-fade-left" /><div className="row-fade-right" />
+              <button className="row-arrow row-arrow-left" onClick={() => scrollRow("left", topRatedRowRef)} aria-label="Scroll left">‹</button>
+              <button className="row-arrow row-arrow-right" onClick={() => scrollRow("right", topRatedRowRef)} aria-label="Scroll right">›</button>
+              <div className="movie-row" ref={topRatedRowRef}>
+                {topRated.map((movie, i) => <MovieCard key={`topr-${i}`} movie={movie} variant="row" />)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* ── NOW IN CINEMAS ── */}
+        <div className="section-wrap">
+          <div className="section-label">
+            <div className="section-bar" />
+            <div>
+              <p className="section-eyebrow">◈ In theatres</p>
+              {nowPlayingLoading
+                ? <div className="skeleton skeleton-section-title" />
+                : <h2 className="section-title">Now In Cinemas</h2>}
+            </div>
+          </div>
+          {nowPlayingLoading ? (
+            <div className="movie-row skeleton-row-wrap" style={{ paddingTop: 14, paddingBottom: 22 }}>
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-np-${i}`} variant="row" />)}
+            </div>
+          ) : nowPlaying.length > 0 ? (
+            <div className="trending-row-container" onMouseEnter={() => setNowPlayingHovered(true)} onMouseLeave={() => setNowPlayingHovered(false)}>
+              <div className="row-fade-left" /><div className="row-fade-right" />
+              <button className="row-arrow row-arrow-left" onClick={() => scrollRow("left", nowPlayingRowRef)} aria-label="Scroll left">‹</button>
+              <button className="row-arrow row-arrow-right" onClick={() => scrollRow("right", nowPlayingRowRef)} aria-label="Scroll right">›</button>
+              <div className="movie-row" ref={nowPlayingRowRef}>
+                {nowPlaying.map((movie, i) => <MovieCard key={`np-${i}`} movie={movie} variant="row" />)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         {/* ── DIVIDER ── */}
-        {!trendingLoading && messages.some(m => m.role !== "typing") && <div className="section-divider" />}
+        {messages.some(m => m.role !== "typing") && <div className="section-divider" />}
 
         {/* ── MESSAGES ── */}
         {messages.map((msg, i) => {
@@ -1316,26 +1391,16 @@ export default function ChatPage() {
               <span className="modal-sep" />
               <span className="modal-year">{selectedMovie.releaseDate}</span>
             </div>
-
             <div className="modal-actions">
-              <button
-                className={`modal-action-btn${isInFavorites(selectedMovie.tmdbId) ? " active-fav" : ""}`}
-                onClick={() => toggleFavorite(selectedMovie)}
-              >
+              <button className={`modal-action-btn${isInFavorites(selectedMovie.tmdbId) ? " active-fav" : ""}`} onClick={() => toggleFavorite(selectedMovie)}>
                 <Heart size={14} fill={isInFavorites(selectedMovie.tmdbId) ? "currentColor" : "none"} />
                 {isInFavorites(selectedMovie.tmdbId) ? "Favorited" : "Favorite"}
               </button>
-              <button
-                className={`modal-action-btn${isInWatchlist(selectedMovie.tmdbId) ? " active-watch" : ""}`}
-                onClick={() => toggleWatchlist(selectedMovie)}
-              >
-                {isInWatchlist(selectedMovie.tmdbId)
-                  ? <BookmarkCheck size={14} />
-                  : <Bookmark size={14} />}
+              <button className={`modal-action-btn${isInWatchlist(selectedMovie.tmdbId) ? " active-watch" : ""}`} onClick={() => toggleWatchlist(selectedMovie)}>
+                {isInWatchlist(selectedMovie.tmdbId) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                 {isInWatchlist(selectedMovie.tmdbId) ? "In Watchlist" : "Watchlist"}
               </button>
             </div>
-
             {selectedMovie.trailer && (
               <div className="modal-trailer">
                 <iframe width="100%" height={cinemaMode ? 540 : 400}
@@ -1345,30 +1410,6 @@ export default function ChatPage() {
               </div>
             )}
             {selectedMovie.overview && <p className="modal-overview">{selectedMovie.overview}</p>}
-
-            {/* ═══════════════════════════════════════════════════════
-                NEW: AI ANALYSE BUTTON — shown only before analysis starts
-                Once insightLoading or insight is set, it disappears and
-                the insight block renders below instead.
-            ═══════════════════════════════════════════════════════ */}
-            {!insightLoading && !insight && (
-              <div className="ai-analyse-wrap">
-                <button
-                  className="ai-analyse-btn"
-                  onClick={() => fetchInsight(selectedMovie.title)}
-                >
-                  <span className="ai-analyse-icon">
-                    <Sparkles size={14} color="rgba(245,200,66,0.85)" strokeWidth={1.8} />
-                  </span>
-                  <span className="ai-analyse-label">
-                    Analyse with AI
-                    <span className="ai-analyse-sub">Deep cinematic breakdown powered by Gemini</span>
-                  </span>
-                  <span className="ai-analyse-arrow">→</span>
-                </button>
-              </div>
-            )}
-
             {(insightLoading || insight) && (
               <div className="insight-block">
                 <div className="insight-header">
@@ -1378,7 +1419,7 @@ export default function ChatPage() {
                 {insightLoading ? (
                   <div className="insight-loading">
                     <div className="typing-dots"><span /><span /><span /></div>
-                    <span className="insight-loading-text">Analyzing cinematic data</span>
+                    <span className="insight-loading-text">Analyzing cinematic data…</span>
                   </div>
                 ) : (
                   <p className="insight-text">{renderBold(animatedInsight || insight)}</p>
@@ -1457,7 +1498,7 @@ export default function ChatPage() {
         </button>
       </div>
 
-      {/* ═══════════ LISTS DRAWER + BACKDROP ═══════════ */}
+      {/* ═══════════ LISTS DRAWER ═══════════ */}
       {showListsDrawer && authUser && (
         <>
           <div className="lists-backdrop" onClick={() => setShowListsDrawer(false)} />
@@ -1490,7 +1531,6 @@ export default function ChatPage() {
               ) : (
                 <div className="lists-grid">
                   {(listsTab === "watchlist" ? watchlist : favorites).map((movie, i) => (
-                    // ── CHANGE 5: Removed fetchInsight() from lists-card onClick ──
                     <div key={i} className="lists-card"
                       onClick={() => { setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); setShowListsDrawer(false); }}>
                       <img src={movie.poster} alt={movie.title} className="lists-card-poster" />
@@ -1512,16 +1552,14 @@ export default function ChatPage() {
         <div className="auth-overlay" onClick={e => { if (e.target === e.currentTarget) setShowAuthModal(false); }}>
           <div className="auth-modal">
             <button className="modal-close" onClick={() => setShowAuthModal(false)}>✕</button>
-            <div className="auth-logo">✦</div>
+            <img src="/logo2.png" alt="Logo" className="auth-logo-img" />            
             <h2 className="auth-title">{authTab === "login" ? "Welcome back" : "Create account"}</h2>
             <p className="auth-sub">
               {authTab === "login" ? "Sign in to access your watchlist and favorites" : "Save your favorite films and build a personal watchlist"}
             </p>
             <div className="auth-tabs">
-              <button className={`auth-tab${authTab === "login" ? " active" : ""}`}
-                onClick={() => { setAuthTab("login"); setAuthError(""); }}>Sign In</button>
-              <button className={`auth-tab${authTab === "register" ? " active" : ""}`}
-                onClick={() => { setAuthTab("register"); setAuthError(""); }}>Register</button>
+              <button className={`auth-tab${authTab === "login" ? " active" : ""}`} onClick={() => { setAuthTab("login"); setAuthError(""); }}>Sign In</button>
+              <button className={`auth-tab${authTab === "register" ? " active" : ""}`} onClick={() => { setAuthTab("register"); setAuthError(""); }}>Register</button>
             </div>
             {authTab === "register" && (
               <div className="auth-field">
