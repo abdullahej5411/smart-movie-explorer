@@ -23,6 +23,8 @@ const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function ChatPage() {
   const [mounted, setMounted] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeout = useRef(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -107,6 +109,23 @@ export default function ChatPage() {
   const popularRowRef = useRef(null);
   const topRatedRowRef = useRef(null);
   const nowPlayingRowRef = useRef(null);
+
+  // ── Scroll Detector ──
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolling(true);
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+      // Wait 150ms after scrolling stops before allowing clicks again
+      scrollTimeout.current = setTimeout(() => setIsScrolling(false), 150);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    };
+  }, []);
+
 
   // ── Mount guard ──
   useEffect(() => { setMounted(true); }, []);
@@ -507,11 +526,19 @@ export default function ChatPage() {
   // ── Movie Card ──
   const MovieCard = ({ movie, variant }) => {
     const isRow = variant === "row";
+
+    const handleClick = () => {
+      if (isScrolling) return; // 🚨 Ignore clicks while scrolling!
+      setSelectedMovie(movie); 
+      setAnimatedInsight(""); 
+      setInsight(""); 
+      setCinemaMode(false);
+    };
+
     return (
       <div
-        onClick={() => { setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
-        onTouchEnd={(e) => { e.preventDefault(); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
-        onContextMenu={(e) => e.preventDefault()} /* 🚨 MAGIC FIX 1: Blocks the hold menu */
+        onClick={handleClick}
+        onContextMenu={(e) => e.preventDefault()}
         className={isRow ? "trending-card" : "grid-card"}
         style={isRow ? { minWidth: 158, width: 158, flexShrink: 0, position: "relative", cursor: "pointer" } : { position: "relative", cursor: "pointer" }}
       >
@@ -547,19 +574,29 @@ export default function ChatPage() {
     );
   };
 
-  const FloatMovieCard = ({ movie }) => (
-    <div className="float-movie-card"
-      onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
-      onTouchEnd={(e) => { e.preventDefault(); setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
-      onContextMenu={(e) => e.preventDefault()} /* 🚨 MAGIC FIX 1 */
-    >
-      {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" draggable="false" />} {/* 🚨 MAGIC FIX 2 */}
-      <div className="float-movie-info">
-        <p className="float-movie-title">{movie.title}</p>
-        <p className="float-movie-rating">★ {Number(movie.rating).toFixed(1)}</p>
+  const FloatMovieCard = ({ movie }) => {
+    const handleClick = () => {
+      if (isScrolling) return; // 🚨 Ignore clicks while scrolling!
+      setFloatOpen(false); 
+      setSelectedMovie(movie); 
+      setAnimatedInsight(""); 
+      setInsight(""); 
+      setCinemaMode(false);
+    };
+
+    return (
+      <div className="float-movie-card"
+        onClick={handleClick}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" draggable="false" />}
+        <div className="float-movie-info">
+          <p className="float-movie-title">{movie.title}</p>
+          <p className="float-movie-rating">★ {Number(movie.rating).toFixed(1)}</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const DfDropdown = ({ suggestions, activeIdx, onSelect, onHover }) => (
     <div className="df-dropdown">
