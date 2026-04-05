@@ -23,8 +23,7 @@ const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function ChatPage() {
   const [mounted, setMounted] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeout = useRef(null);
+
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -110,21 +109,8 @@ export default function ChatPage() {
   const topRatedRowRef = useRef(null);
   const nowPlayingRowRef = useRef(null);
 
-  // ── Scroll Detector ──
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolling(true);
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-      // Wait 150ms after scrolling stops before allowing clicks again
-      scrollTimeout.current = setTimeout(() => setIsScrolling(false), 150);
-    };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-    };
-  }, []);
+  const touchStartPos = useRef({ x: 0, y: 0 });
 
 
   // ── Mount guard ──
@@ -524,21 +510,27 @@ export default function ChatPage() {
   };
 
   // ── Movie Card ──
+  // ── Movie Card ──
   const MovieCard = ({ movie, variant }) => {
     const isRow = variant === "row";
 
-    const handleClick = () => {
-      if (isScrolling) return; // 🚨 Ignore clicks while scrolling!
-      setSelectedMovie(movie); 
-      setAnimatedInsight(""); 
-      setInsight(""); 
-      setCinemaMode(false);
-    };
-
     return (
       <div
-        onClick={handleClick}
-        onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={(e) => {
+          touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }}
+        onTouchEnd={(e) => {
+          const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.current.x);
+          const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.current.y);
+          if (dx < 8 && dy < 8) {
+            e.preventDefault();
+            setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false);
+          }
+        }}
+
+
+        onClick={() => { setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
+        onContextMenu={(e) => e.preventDefault()} /* Blocks the hold menu */
         className={isRow ? "trending-card" : "grid-card"}
         style={isRow ? { minWidth: 158, width: 158, flexShrink: 0, position: "relative", cursor: "pointer" } : { position: "relative", cursor: "pointer" }}
       >
@@ -574,19 +566,24 @@ export default function ChatPage() {
     );
   };
 
+  // ── Float Movie Card ──
   const FloatMovieCard = ({ movie }) => {
-    const handleClick = () => {
-      if (isScrolling) return; // 🚨 Ignore clicks while scrolling!
-      setFloatOpen(false); 
-      setSelectedMovie(movie); 
-      setAnimatedInsight(""); 
-      setInsight(""); 
-      setCinemaMode(false);
-    };
-
     return (
       <div className="float-movie-card"
-        onClick={handleClick}
+        onTouchStart={(e) => {
+          touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }}
+        onTouchEnd={(e) => {
+          const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.current.x);
+          const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.current.y);
+          if (dx < 8 && dy < 8) {
+            e.preventDefault();
+            setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false);
+          }
+        }}
+
+
+        onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
         onContextMenu={(e) => e.preventDefault()}
       >
         {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" draggable="false" />}
@@ -1139,6 +1136,14 @@ export default function ChatPage() {
           .footer-links { gap: 12px; }
         }
 
+        @media (hover: none) {
+          .trending-card, .grid-card { transform: none !important; transition: opacity 0.1s, transform 0.1s !important; }
+          .trending-card:hover, .grid-card:hover { transform: none !important; box-shadow: none !important; }
+          .trending-card:hover .card-poster, .grid-card:hover .card-poster { transform: none !important; }
+          .trending-card:hover .row-poster { box-shadow: none !important; }
+          .trending-card:hover .grid-card-inner { border-color: var(--border) !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important; }
+          .card-hover-overlay, .card-play-btn { display: none !important; }
+        }
 
         @media (max-width: 900px) {
           .mood-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1215,6 +1220,20 @@ export default function ChatPage() {
           .section-title { font-size: 19px; }
           .moodboard-heading { font-size: 17px; }
           .nav-username { display: none; }
+
+          /* 🚨 THE ULTIMATE MOBILE TOUCH FIX 🚨 */
+          /* 1. Nuke the hover animations that cause the double-tap bug */
+          .trending-card:hover, .grid-card:hover, .float-movie-card:hover, .lists-card:hover { transform: none !important; }
+          .card-hover-overlay, .card-play-btn { display: none !important; }
+          .grid-card:hover .grid-card-inner { border-color: var(--border) !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important; }
+          .trending-card:hover .card-poster, .grid-card:hover .card-poster { transform: none !important; }
+          
+          /* 2. Add native mobile "Press" feedback instead */
+          .trending-card:active, .grid-card:active, .float-movie-card:active, .lists-card:active {
+            opacity: 0.6 !important;
+            transform: scale(0.96) !important;
+            transition: opacity 0.1s, transform 0.1s !important;
+          }
         }
 
         @media (max-width: 400px) {
@@ -1405,12 +1424,36 @@ export default function ChatPage() {
             {dfResult && !dfLoading && (
               <div className="df-result">
                 <div className="df-result-poster"
+                  onTouchStart={(e) => {
+                    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                  }}
+                  onTouchEnd={(e) => {
+                    const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.current.x);
+                    const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.current.y);
+                    if (dx < 8 && dy < 8) {
+                      e.preventDefault();
+                      setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false);
+                    }
+                  }}
+
                   onClick={() => { setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}>
                   <img src={dfResult.movie.poster} alt={dfResult.movie.title} />
                 </div>
                 <div className="df-result-body">
                   <p className="df-result-eyebrow">✦ Your bridge film</p>
                   <p className="df-result-title"
+                    onTouchStart={(e) => {
+                      touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    }}
+                    onTouchEnd={(e) => {
+                      const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.current.x);
+                      const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.current.y);
+                      if (dx < 8 && dy < 8) {
+                        e.preventDefault();
+                        setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false);
+                      }
+                    }} 
+                    
                     onClick={() => { setSelectedMovie(dfResult.movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}>
                     {dfResult.movie.title}
                   </p>
