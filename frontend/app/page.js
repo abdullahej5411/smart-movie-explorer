@@ -510,6 +510,7 @@ export default function ChatPage() {
     return (
       <div
         onClick={() => { setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
+        onTouchEnd={(e) => { e.preventDefault(); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
         onContextMenu={(e) => e.preventDefault()} /* 🚨 MAGIC FIX 1: Blocks the hold menu */
         className={isRow ? "trending-card" : "grid-card"}
         style={isRow ? { minWidth: 158, width: 158, flexShrink: 0, position: "relative", cursor: "pointer" } : { position: "relative", cursor: "pointer" }}
@@ -549,6 +550,7 @@ export default function ChatPage() {
   const FloatMovieCard = ({ movie }) => (
     <div className="float-movie-card"
       onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
+      onTouchEnd={(e) => { e.preventDefault(); setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
       onContextMenu={(e) => e.preventDefault()} /* 🚨 MAGIC FIX 1 */
     >
       {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" draggable="false" />} {/* 🚨 MAGIC FIX 2 */}
