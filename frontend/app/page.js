@@ -846,6 +846,17 @@ export default function ChatPage() {
           .grid-card:hover .card-play-btn, .trending-card:hover .card-play-btn { transform: scale(1); }
         }
 
+
+        /* 🚨 PREVENT LONG-PRESS & SELECTION BUGS ON TOUCH SCREENS 🚨 */
+        .trending-card, .grid-card, .float-movie-card, .lists-card, .df-result-poster {
+          -webkit-touch-callout: none; /* Disables the iOS pop-up menu on long-press */
+          -webkit-user-select: none;   /* Prevents Safari from selecting the card */
+          user-select: none;           /* Prevents Android/Chrome from selecting the card */
+          -webkit-tap-highlight-color: transparent; /* Removes the ugly blue/grey flash on tap */
+          touch-action: manipulation;  /* Tells the browser to process taps instantly */
+        }
+          
+
         /* ═══ SECTION DIVIDER ═══ */
         .section-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent); margin-bottom: 52px; }
 
