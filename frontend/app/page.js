@@ -510,13 +510,14 @@ export default function ChatPage() {
     return (
       <div
         onClick={() => { setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
+        onContextMenu={(e) => e.preventDefault()} /* 🚨 MAGIC FIX 1: Blocks the hold menu */
         className={isRow ? "trending-card" : "grid-card"}
         style={isRow ? { minWidth: 158, width: 158, flexShrink: 0, position: "relative", cursor: "pointer" } : { position: "relative", cursor: "pointer" }}
       >
         {isRow ? (
           <>
             <div className="card-poster-wrap row-poster">
-              <img src={movie.poster} alt={movie.title} className="card-poster" />
+              <img src={movie.poster} alt={movie.title} className="card-poster" draggable="false" />
               <div className="card-shine" />
               <div className="card-hover-overlay"><span className="card-play-btn">▶</span></div>
             </div>
@@ -528,7 +529,7 @@ export default function ChatPage() {
         ) : (
           <div className="grid-card-inner">
             <div className="card-poster-wrap grid-poster">
-              <img src={movie.poster} alt={movie.title} className="card-poster" />
+              <img src={movie.poster} alt={movie.title} className="card-poster" draggable="false" />
               <div className="card-shine" />
               <div className="card-hover-overlay"><span className="card-play-btn">▶</span></div>
             </div>
@@ -547,8 +548,10 @@ export default function ChatPage() {
 
   const FloatMovieCard = ({ movie }) => (
     <div className="float-movie-card"
-      onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}>
-      {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" />}
+      onClick={() => { setFloatOpen(false); setSelectedMovie(movie); setAnimatedInsight(""); setInsight(""); setCinemaMode(false); }}
+      onContextMenu={(e) => e.preventDefault()} /* 🚨 MAGIC FIX 1 */
+    >
+      {movie.poster && <img src={movie.poster} alt={movie.title} className="float-movie-poster" draggable="false" />} {/* 🚨 MAGIC FIX 2 */}
       <div className="float-movie-info">
         <p className="float-movie-title">{movie.title}</p>
         <p className="float-movie-rating">★ {Number(movie.rating).toFixed(1)}</p>
@@ -855,7 +858,7 @@ export default function ChatPage() {
           -webkit-tap-highlight-color: transparent; /* Removes the ugly blue/grey flash on tap */
           touch-action: manipulation;  /* Tells the browser to process taps instantly */
         }
-          
+
 
         /* ═══ SECTION DIVIDER ═══ */
         .section-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,39,0.18) 40%, rgba(201,162,39,0.18) 60%, transparent); margin-bottom: 52px; }
